@@ -1,0 +1,260 @@
+import { and, asc, eq } from "drizzle-orm";
+import { schema } from "@owlnighter/db";
+import {
+  GroundedBookPlan,
+  type BookIdentity,
+  type PlanGenerateRequest,
+  type PlanResponse,
+  type PlanStep,
+  type PlanStepState,
+  type QuizMode,
+} from "@owlnighter/contracts";
+import type { Deps } from "../deps.js";
+import { notFound, unavailable } from "../plugins/errors.js";
+import type { AuthUser } from "../types.js";
+
+/**
+ * Which provider generates the plan. Plans are contract-critical and
+ * citation-bearing, so the default is Gemini (native grounding + strict schema).
+ * A caller may force a provider; we honour it only if its key is configured.
+ */
+function chooseProvider(deps: Deps, requested?: "gemini" | "groq"): "gemini" | "groq" {
+  const { env } = deps.config;
+  const has = (p: "gemini" | "groq") => (p === "gemini" ? env.GEMINI_API_KEY : env.GROQ_API_KEY).length > 0;
+  if (requested && has(requested)) return requested;
+  if (has("gemini")) return "gemini";
+  if (has("groq")) return "groq";
+  return "gemini"; // will fail the key check below with a clear error
+}
+
+const SYSTEM_PROMPT = [
+  "You create realistic nightly reading plans from a grounded fact set.",
+  "Each step covers one night. Only set pageStart/pageEnd when page data is trustworthy.",
+  "Set a per-step quizMode: 'grounded' when backed by grounded facts, 'preview' for",
+  "public-preview context, 'fallback' when there is no page-level guarantee.",
+  "Output valid JSON only, matching the schema.",
+].join(" ");
+
+function loadIdentity(row: typeof schema.books.$inferSelect): BookIdentity {
+  const identity: BookIdentity = {
+    canonicalTitle: row.canonicalTitle,
+    authors: row.canonicalAuthor,
+    confidence: Number(row.metadataConfidence),
+  };
+  if (row.editionLabel) identity.editionLabel = row.editionLabel;
+  if (row.isbn13) identity.isbn13 = row.isbn13;
+  if (row.googleBooksId) identity.googleBooksId = row.googleBooksId;
+  if (row.openLibraryKey) identity.openLibraryKey = row.openLibraryKey;
+  if (row.pageCount) identity.pageCount = row.pageCount;
+  if (row.languageCode) identity.languageCode = row.languageCode;
+  if (row.publishedYear) identity.publishedYear = row.publishedYear;
+  if (row.coverUrl) identity.coverUrl = row.coverUrl;
+  return identity;
+}
+
+function userPrompt(identity: BookIdentity, groundingStatus: string, req: PlanGenerateRequest): string {
+  const coverageMode = groundingStatus === "grounded" ? "grounded" : groundingStatus === "partial" ? "preview" : "fallback";
+  const facts = {
+    pageCount: identity.pageCount,
+    languageCode: identity.languageCode,
+    coverageMode,
+    confidence: identity.confidence,
+  };
+  const prefs = {
+    goal: req.goal,
+    experience: req.experience,
+    bedtime: req.bedtimeLocal,
+    maxMinutes: req.maxMinutes,
+    pacingMode: req.pacingMode,
+  };
+  return [
+    `Book facts:\n${JSON.stringify(facts, null, 2)}`,
+    "",
+    `Reader preferences:\n${JSON.stringify(prefs, null, 2)}`,
+    "",
+    "Constraints:",
+    `- Pacing: ${req.pacingMode}`,
+    "- Nightly goal must respect the reader's maxMinutes",
+    `- Use quizMode 'fallback' for any step where page coverage is weak (coverageMode=${coverageMode})`,
+  ].join("\n");
+}
+
+/**
+ * A step's quiz can never claim more precision than the book's grounding
+ * supports. We clamp the model's per-step quizMode down to what the book's
+ * grounding_status actually allows, so the honesty guarantee holds even if the
+ * model is over-optimistic.
+ */
+function clampQuizMode(mode: QuizMode, groundingStatus: string): QuizMode {
+  if (mode === "user_text") return mode; // reader-supplied text is always allowed
+  if (groundingStatus === "grounded") return mode;
+  if (groundingStatus === "partial") return mode === "grounded" ? "preview" : mode;
+  // blocked / pending → no page-level guarantee
+  return "fallback";
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerateRequest): Promise<PlanResponse> {
+  const bookRows = await deps.db.select().from(schema.books).where(eq(schema.books.id, req.bookId)).limit(1);
+  const book = bookRows[0];
+  if (!book) throw notFound("Book not found. Ground it first via POST /v1/books/ground.");
+
+  const provider = chooseProvider(deps, req.provider);
+  const key = provider === "gemini" ? deps.config.env.GEMINI_API_KEY : deps.config.env.GROQ_API_KEY;
+  if (key.length === 0) throw unavailable(`Plan generation unavailable: ${provider.toUpperCase()}_API_KEY is not configured.`);
+
+  const identity = loadIdentity(book);
+  const result = await deps.ai.generateObject<GroundedBookPlan>({
+    task: "plan_generation",
+    schemaName: "GroundedBookPlan",
+    schema: GroundedBookPlan,
+    system: SYSTEM_PROMPT,
+    user: userPrompt(identity, book.groundingStatus, req),
+    provider,
+    requireGrounding: provider === "gemini",
+    requireStrictSchema: provider === "gemini",
+  });
+  const plan = result.data;
+
+  // Determine plan version: bump if this user already has a plan for this book.
+  const prior = await deps.db
+    .select({ v: schema.readingPlans.planVersion })
+    .from(schema.readingPlans)
+    .where(and(eq(schema.readingPlans.userId, user.id), eq(schema.readingPlans.bookId, req.bookId)))
+    .orderBy(asc(schema.readingPlans.planVersion));
+  const planVersion = (prior.at(-1)?.v ?? 0) + 1;
+
+  const startsOn = todayIso();
+  const planRows = await deps.db
+    .insert(schema.readingPlans)
+    .values({
+      userId: user.id,
+      bookId: req.bookId,
+      provider: result.provider,
+      providerModel: result.model,
+      planVersion,
+      nightlyGoalPages: plan.nightlyGoalPages,
+      pacingMode: plan.pacingMode,
+      startsOn,
+    })
+    .returning({ id: schema.readingPlans.id });
+  const planId = planRows[0]!.id;
+
+  // Persist steps, clamping each quizMode to the book's grounding guarantee.
+  const steps: PlanStep[] = [];
+  const stepStates: PlanStepState[] = [];
+  for (let i = 0; i < plan.steps.length; i++) {
+    const s = plan.steps[i]!;
+    const quizMode = clampQuizMode(s.quizMode, book.groundingStatus);
+    const stepRows = await deps.db
+      .insert(schema.readingPlanSteps)
+      .values({
+        planId,
+        stepIndex: s.stepIndex,
+        pageStart: s.pageStart ?? null,
+        pageEnd: s.pageEnd ?? null,
+        chapterHint: s.chapterHint ?? null,
+        title: s.title,
+        shortPrompt: s.prompt,
+        quizMode,
+      })
+      .returning({ id: schema.readingPlanSteps.id });
+    const stepId = stepRows[0]!.id;
+
+    steps.push({ ...s, quizMode });
+    // First step is available immediately; the rest unlock as the reader progresses.
+    stepStates.push({
+      stepId,
+      stepIndex: s.stepIndex,
+      status: i === 0 ? "available" : "locked",
+    });
+  }
+
+  return {
+    planId,
+    bookId: req.bookId,
+    provider: result.provider,
+    providerModel: result.model,
+    planVersion,
+    pacingMode: plan.pacingMode,
+    nightlyGoalPages: plan.nightlyGoalPages,
+    startsOn,
+    steps,
+    stepStates,
+  };
+}
+
+/** Fetch a persisted plan + its step states for the reader UI. */
+export async function getPlan(deps: Deps, user: AuthUser, planId: string): Promise<PlanResponse> {
+  const planRows = await deps.db.select().from(schema.readingPlans).where(eq(schema.readingPlans.id, planId)).limit(1);
+  const plan = planRows[0];
+  if (!plan || plan.userId !== user.id) throw notFound("Plan not found.");
+
+  const bookRows = await deps.db
+    .select({ metadataConfidence: schema.books.metadataConfidence })
+    .from(schema.books)
+    .where(eq(schema.books.id, plan.bookId))
+    .limit(1);
+  const book = bookRows[0];
+
+  const stepRows = await deps.db
+    .select()
+    .from(schema.readingPlanSteps)
+    .where(eq(schema.readingPlanSteps.planId, planId))
+    .orderBy(asc(schema.readingPlanSteps.stepIndex));
+
+  // Completed steps are those with a completed reading_session.
+  const sessions = await deps.db
+    .select({ stepId: schema.readingSessions.stepId, completedAt: schema.readingSessions.completedAt })
+    .from(schema.readingSessions)
+    .where(eq(schema.readingSessions.userId, user.id));
+  const completed = new Set(sessions.filter((s) => s.completedAt).map((s) => s.stepId));
+
+  const steps: PlanStep[] = [];
+  const stepStates: PlanStepState[] = [];
+  let firstIncompleteSeen = false;
+  for (const row of stepRows) {
+    steps.push({
+      stepIndex: row.stepIndex,
+      title: row.title,
+      ...(row.pageStart != null ? { pageStart: row.pageStart } : {}),
+      ...(row.pageEnd != null ? { pageEnd: row.pageEnd } : {}),
+      ...(row.chapterHint ? { chapterHint: row.chapterHint } : {}),
+      quizMode: row.quizMode as QuizMode,
+      prompt: row.shortPrompt ?? "",
+      // Per-step confidence isn't persisted (only the quizMode provenance is);
+      // the book's metadataConfidence is the meaningful trust signal here.
+      confidence: Number(book?.metadataConfidence ?? 1),
+    });
+
+    const isCompleted = completed.has(row.id);
+    let status: PlanStepState["status"];
+    if (isCompleted) status = "completed";
+    else if (!firstIncompleteSeen) {
+      status = "available";
+      firstIncompleteSeen = true;
+    } else status = "locked";
+
+    const state: PlanStepState = { stepId: row.id, stepIndex: row.stepIndex, status };
+    if (row.unlocksAt) state.unlocksAt = row.unlocksAt.toISOString();
+    if (row.ttsAssetId) state.ttsAssetId = row.ttsAssetId;
+    stepStates.push(state);
+  }
+
+  return {
+    planId: plan.id,
+    bookId: plan.bookId,
+    provider: plan.provider as "gemini" | "groq",
+    providerModel: plan.providerModel,
+    planVersion: plan.planVersion,
+    pacingMode: plan.pacingMode as PlanResponse["pacingMode"],
+    nightlyGoalPages: plan.nightlyGoalPages,
+    startsOn: plan.startsOn,
+    ...(plan.endsOn ? { endsOn: plan.endsOn } : {}),
+    steps,
+    stepStates,
+  };
+}

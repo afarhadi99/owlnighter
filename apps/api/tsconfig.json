@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // App is a leaf: it consumes the workspace libs but nothing consumes it,
+    // so it does not need to emit composite project references.
+    "composite": false
+  },
+  "include": ["src/**/*.ts"]
+}
