@@ -1,0 +1,29 @@
+{
+  "name": "@owlnighter/jobs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled jobs, queues, and task handlers: TTS pre-generation, nightly reminders, streak warnings.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@owlnighter/ai": "workspace:*",
+    "@owlnighter/db": "workspace:*",
+    "@owlnighter/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

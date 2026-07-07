@@ -1,0 +1,31 @@
+{
+  "name": "@owlnighter/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Provider abstraction (Gemini + Groq) with deterministic routing and a validate-and-retry loop.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/**/*.test.js || true"
+  },
+  "dependencies": {
+    "@owlnighter/contracts": "workspace:*",
+    "@owlnighter/shared": "workspace:*",
+    "zod": "^4.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
