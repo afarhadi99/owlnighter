@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  @apply bg-ink-900 text-slate-200 font-sans antialiased;
+}
+
+/* Data surfaces default to the mono stack for column alignment. */
+.data {
+  @apply font-mono text-[13px] leading-relaxed;
+}
+
+th,
+td {
+  @apply text-left;
+}
