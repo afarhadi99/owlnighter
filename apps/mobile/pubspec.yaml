@@ -1,0 +1,61 @@
+name: owlnighter
+description: owlnighter — a nightly reading-habit app. Read tonight, quiz, keep your streak.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  # 3.27+ for Color.withValues (non-deprecated alpha API).
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local workspace packages.
+  app_core:
+    path: ../../packages/dart/app_core
+  api_client:
+    path: ../../packages/dart/api_client
+  design_system:
+    path: ../../packages/dart/design_system
+  offline:
+    path: ../../packages/dart/offline
+
+  # State + routing.
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.7
+
+  # Networking (used transitively via api_client, declared for direct config).
+  dio: ^5.7.0
+
+  # Device.
+  flutter_secure_storage: ^9.2.2
+  connectivity_plus: ^6.0.5
+  package_info_plus: ^8.0.2
+
+  # Push + local notifications.
+  firebase_messaging: ^15.1.0
+  flutter_local_notifications: ^17.2.3
+
+  # Audio (nightly recap playback + background controls).
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.13
+
+  # Real-time (Deepgram voice preview / admin tooling).
+  web_socket_channel: ^3.0.1
+
+  # Motion assets (also declared in design_system; app needs them for bundling).
+  rive: ^0.13.13
+  lottie: ^3.1.2
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  # assets:
+  #   - assets/rive/
+  #   - assets/lottie/

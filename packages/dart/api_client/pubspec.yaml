@@ -1,0 +1,16 @@
+name: api_client
+description: Dio-based typed HTTP client for the owlnighter API.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  dio: ^5.7.0
+  app_core:
+    path: ../app_core
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0

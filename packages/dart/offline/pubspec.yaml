@@ -1,0 +1,26 @@
+name: offline
+description: Drift-backed offline-first store + sync queue for owlnighter.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  drift: ^2.20.0
+  # Opens the database on a background isolate with the bundled sqlite3.
+  drift_flutter: ^0.2.0
+  sqlite3_flutter_libs: ^0.5.24
+  app_core:
+    path: ../app_core
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  # Codegen: `dart run build_runner build` regenerates database.g.dart.
+  drift_dev: ^2.20.0
+  build_runner: ^2.4.11
+
+flutter:

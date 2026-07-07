@@ -1,0 +1,22 @@
+name: design_system
+description: owlnighter design tokens, theme, and Duolingo-style motion primitives.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  # 3.27+ for Color.withValues (non-deprecated alpha API).
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Rive drives the stateful mascot / streak-flame state machine.
+  rive: ^0.13.13
+  # Lottie is used sparingly for one-shot celebratory loops.
+  lottie: ^3.1.2
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
