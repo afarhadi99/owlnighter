@@ -1,0 +1,123 @@
+# ============================================================================
+# owlnighter — SAMPLE Codemagic pipeline for the Flutter mobile app.
+#
+# This is a reference, not a live config. To use it, copy to `codemagic.yaml`
+# at the REPO ROOT (Codemagic only reads the root file) and fill in the
+# `TODO` values + connect signing/publishing integrations in the Codemagic UI.
+#
+# The mobile app lives at apps/mobile; the repo also has a pnpm/Melos
+# workspace, so `flutter` commands run with a working dir of apps/mobile.
+# ============================================================================
+workflows:
+  # --- CI: runs on every PR/push; fast feedback, no signing ------------------
+  flutter-ci:
+    name: Flutter CI (analyze + test)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+    triggering:
+      events:
+        - push
+        - pull_request
+    scripts:
+      - name: Resolve dependencies
+        working_directory: apps/mobile
+        script: flutter pub get
+      - name: Format check
+        working_directory: apps/mobile
+        script: dart format --set-exit-if-changed .
+      - name: Analyze
+        working_directory: apps/mobile
+        script: flutter analyze
+      - name: Test
+        working_directory: apps/mobile
+        script: flutter test
+
+  # --- Android release build (signed AAB → Play internal track) --------------
+  android-release:
+    name: Android release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        # Define these variable groups in the Codemagic UI (encrypted):
+        #  - google_play:      GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        #  - android_signing:  keystore + key alias/passwords (or use UI signing)
+        #  - firebase_config:  GOOGLE_SERVICES_JSON (base64 of the gitignored file)
+        - google_play
+        - android_signing
+        - firebase_config
+      android_signing:
+        - owlnighter_keystore # reference an Android keystore uploaded in the UI
+    triggering:
+      events:
+        - tag # e.g. push a tag like v1.2.3 to cut a release
+    scripts:
+      - name: Restore gitignored google-services.json
+        working_directory: apps/mobile
+        # google-services.json is gitignored, so recreate it from an encrypted var.
+        script: echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
+      - name: Resolve dependencies
+        working_directory: apps/mobile
+        script: flutter pub get
+      - name: Analyze
+        working_directory: apps/mobile
+        script: flutter analyze
+      - name: Test
+        working_directory: apps/mobile
+        script: flutter test
+      - name: Build AAB
+        working_directory: apps/mobile
+        script: flutter build appbundle --release
+    artifacts:
+      - apps/mobile/build/**/outputs/**/*.aab
+      - apps/mobile/build/**/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal # promote to production manually after QA
+
+  # --- iOS release build (signed IPA → TestFlight) ---------------------------
+  ios-release:
+    name: iOS release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        - app_store_connect # APP_STORE_CONNECT_* API key vars
+        - firebase_config # GOOGLE_SERVICE_INFO_PLIST (base64)
+      ios_signing:
+        # Automatic code signing via an App Store Connect API key set up in the UI.
+        distribution_type: app_store
+        bundle_identifier: org.owlnighter.app # TODO: set real bundle id
+    triggering:
+      events:
+        - tag
+    scripts:
+      - name: Restore gitignored GoogleService-Info.plist
+        working_directory: apps/mobile
+        script: echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+      - name: Resolve dependencies
+        working_directory: apps/mobile
+        script: flutter pub get
+      - name: Analyze
+        working_directory: apps/mobile
+        script: flutter analyze
+      - name: Test
+        working_directory: apps/mobile
+        script: flutter test
+      - name: Set up code signing
+        working_directory: apps/mobile
+        script: xcode-project use-profiles
+      - name: Build IPA
+        working_directory: apps/mobile
+        script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - apps/mobile/build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration # use the App Store Connect API key configured in the UI
+        submit_to_testflight: true

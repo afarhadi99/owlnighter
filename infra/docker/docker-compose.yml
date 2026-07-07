@@ -1,0 +1,65 @@
+# ============================================================================
+# owlnighter — local stack (Postgres + API)
+#
+# This is the lightweight path: raw Postgres with pgvector + the API. It gives
+# you a working DB and API without the full Supabase toolchain.
+#
+# ALTERNATIVE (recommended for auth/storage/RLS work): use Supabase local.
+#   `supabase start` boots Postgres + Auth (GoTrue) + Storage + Studio and
+#   exposes the URLs already in .env.example (127.0.0.1:54321 / :54322).
+#   Use this compose file only when you want a minimal DB+API loop and don't
+#   need Supabase Auth/Storage — e.g. contract/API iteration. The two are
+#   mutually exclusive on ports, so don't run both against the same .env.
+#
+# Run from the repo root:
+#   docker compose -f infra/docker/docker-compose.yml up --build
+# ============================================================================
+
+services:
+  db:
+    # pgvector/pgvector ships Postgres 16 with the `vector` extension prebuilt,
+    # matching infra/sql/0001_init.sql (`create extension vector`).
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      # Match the DATABASE_URL port in .env.example so a local Supabase-style
+      # connection string works unchanged against this container too.
+      - "54322:5432"
+    volumes:
+      - owlnighter_pgdata:/var/lib/postgresql/data
+      # Auto-run schema + RLS on first boot of an empty volume. Files run in
+      # lexical order, so 0001 (schema) precedes 0002 (RLS).
+      - ../sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      # Root context so the whole pnpm workspace is available to the build.
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    restart: unless-stopped
+    # Load developer keys + config from the repo-root .env (gitignored).
+    env_file:
+      - ../../.env
+    environment:
+      # Point the API at the compose DB regardless of what .env holds, since
+      # inside the compose network the host is `db`, not 127.0.0.1.
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      API_HOST: 0.0.0.0
+      API_PORT: "8787"
+    ports:
+      - "8787:8787"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  owlnighter_pgdata:

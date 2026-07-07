@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ts:
+    name: TypeScript (build, typecheck, contracts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm must be available before setup-node's pnpm cache resolves.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # Version comes from package.json "packageManager", so no pin here.
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm -r build
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      # Regenerate the committed OpenAPI doc and fail if it drifts from what's
+      # checked in — this keeps contracts/openapi.json honest (it's the source
+      # the Dart + TS clients are generated from).
+      - name: Contracts — OpenAPI is committed & up to date
+        run: |
+          pnpm contracts:openapi
+          git diff --exit-code -- packages/ts/contracts/openapi.json \
+            || (echo "::error::openapi.json is stale. Run 'pnpm contracts:openapi' and commit." && exit 1)
+
+  flutter:
+    name: Flutter (format, analyze, test)
+    runs-on: ubuntu-latest
+    # Only run when the mobile app exists / changed. The app is early, so we
+    # keep this job scoped and its analyze/test steps non-blocking for now
+    # (see continue-on-error below) — flip them to blocking once it stabilizes.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Resolve dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      # Formatting is cheap and deterministic, so keep it blocking from day one.
+      - name: Format check
+        working-directory: apps/mobile
+        run: dart format --set-exit-if-changed .
+
+      # Non-blocking initially: the app is scaffolding and will have analyzer
+      # noise / thin tests early. Remove continue-on-error once it's real.
+      - name: Analyze
+        working-directory: apps/mobile
+        continue-on-error: true
+        run: flutter analyze
+
+      - name: Test
+        working-directory: apps/mobile
+        continue-on-error: true
+        run: flutter test

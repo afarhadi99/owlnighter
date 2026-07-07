@@ -1,0 +1,59 @@
+# ============================================================================
+# owlnighter API — multi-stage image
+# Builds the pnpm workspace (contracts/shared/db + apps/api) and runs the
+# compiled Fastify server. Kept as a single Dockerfile so the build has the
+# whole workspace graph available (apps/api depends on workspace:* packages
+# that must be built first).
+#
+# Build from the REPO ROOT so the whole workspace is in context:
+#   docker build -f infra/docker/Dockerfile.api -t owlnighter-api .
+# ============================================================================
+
+# --- Base: pin Node + enable Corepack-managed pnpm -------------------------
+FROM node:22-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+# Corepack ships with Node 22; it pins the exact pnpm from package.json's
+# "packageManager" field, so the image matches local/CI without guessing.
+RUN corepack enable
+WORKDIR /app
+
+# --- Deps: install with the full lockfile for deterministic installs -------
+FROM base AS deps
+# Copy only manifests first so this layer caches unless a manifest changes.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY packages/ts/contracts/package.json packages/ts/contracts/package.json
+COPY packages/ts/shared/package.json     packages/ts/shared/package.json
+COPY packages/ts/db/package.json         packages/ts/db/package.json
+COPY apps/api/package.json               apps/api/package.json
+# --frozen-lockfile fails the build if the lockfile is stale (CI-grade guard).
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# --- Build: compile the workspace, then prune to prod deps -----------------
+FROM base AS build
+COPY --from=deps /app /app
+COPY . .
+# Build workspace packages before the app (app imports their dist output).
+RUN pnpm -r --filter "./packages/ts/**" run build \
+ && pnpm --filter @owlnighter/api run build
+# Re-resolve to production-only deps so the runtime image stays lean.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter @owlnighter/api deploy --prod --legacy /app/deploy
+
+# --- Runtime: distroless-ish slim image, non-root --------------------------
+FROM node:22-slim AS runtime
+ENV NODE_ENV=production
+# Cloud Run injects PORT; the server must bind 0.0.0.0:$PORT. We default
+# API_PORT to 8080 (Cloud Run's default) but the server should prefer $PORT.
+ENV API_HOST=0.0.0.0
+ENV API_PORT=8080
+WORKDIR /app
+
+# `node` user (uid 1000) ships with the official image — no need to create one.
+COPY --from=build --chown=node:node /app/deploy /app
+
+USER node
+EXPOSE 8080
+# Compiled entrypoint from apps/api build (tsc -> dist/server.js).
+CMD ["node", "dist/server.js"]

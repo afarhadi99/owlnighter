@@ -1,0 +1,135 @@
+# ============================================================================
+# owlnighter API — Cloud Run service (Knative manifest)
+#
+# Deploy with:
+#   gcloud run services replace infra/cloud-run/api-service.yaml --region=us-central1
+#
+# Before deploying, create the referenced secrets in Secret Manager, e.g.:
+#   printf '%s' "$GEMINI_API_KEY" | gcloud secrets create GEMINI_API_KEY --data-file=-
+# and grant the runtime service account roles/secretmanager.secretAccessor.
+#
+# Placeholders to fill: PROJECT_ID, IMAGE tag, SERVICE_ACCOUNT email.
+# ============================================================================
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: owlnighter-api
+  labels:
+    app: owlnighter
+    component: api
+  annotations:
+    # Route 100% of traffic to the latest healthy revision on deploy.
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # --- Scaling ---------------------------------------------------------
+        # Scale to zero when idle (cost-aware: the blueprint picks Cloud Run
+        # specifically for scale-to-zero + a request/CPU/RAM free tier).
+        autoscaling.knative.dev/minScale: "0"
+        # Cap to protect the DB connection pool (Supabase has finite conns).
+        autoscaling.knative.dev/maxScale: "10"
+        # Only allocate CPU during request processing — cheaper for a bursty,
+        # nightly-traffic workload. Background jobs run as separate services.
+        run.googleapis.com/cpu-throttling: "true"
+    spec:
+      # Fastify is async and lightweight, so one instance can multiplex many
+      # concurrent requests before we need another. Tune down if a handler is
+      # CPU-heavy. Cloud Run default is 80; we set it explicitly for clarity.
+      containerConcurrency: 80
+      timeoutSeconds: 30
+      serviceAccountName: SERVICE_ACCOUNT@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: gcr.io/PROJECT_ID/owlnighter-api:latest
+          ports:
+            # Cloud Run sends traffic to this port and injects $PORT=8080.
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: API_HOST
+              value: 0.0.0.0
+            # Non-secret config inline; secrets via valueFrom below.
+            - name: GEMINI_MODEL
+              value: gemini-3.5-flash
+            - name: GROQ_MODEL
+              value: qwen-3.6-32b
+            - name: DEEPGRAM_TTS_MODEL
+              value: aura-2-thalia-en
+            - name: OPEN_LIBRARY_BASE_URL
+              value: https://openlibrary.org
+            - name: GROUNDING_AUTO_ACCEPT
+              value: "0.85"
+            - name: GROUNDING_REVIEW_FLOOR
+              value: "0.60"
+            # --- Secrets from Secret Manager (latest version) ----------------
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: DATABASE_URL
+                  key: latest
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: SUPABASE_URL
+                  key: latest
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: SUPABASE_SERVICE_ROLE_KEY
+                  key: latest
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: SUPABASE_ANON_KEY
+                  key: latest
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: GEMINI_API_KEY
+                  key: latest
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: GROQ_API_KEY
+                  key: latest
+            - name: DEEPGRAM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: DEEPGRAM_API_KEY
+                  key: latest
+            - name: GOOGLE_BOOKS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: GOOGLE_BOOKS_API_KEY
+                  key: latest
+            # FCM service account JSON (whole file) stored as one secret.
+            - name: FCM_SERVICE_ACCOUNT_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: FCM_SERVICE_ACCOUNT_JSON
+                  key: latest
+            - name: FCM_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: FCM_PROJECT_ID
+                  key: latest
+          startupProbe:
+            httpGet:
+              path: /health
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+            periodSeconds: 30
+  traffic:
+    - percent: 100
+      latestRevision: true
