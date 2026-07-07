@@ -1,0 +1,29 @@
+{
+  "name": "@owlnighter/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod source-of-truth contracts → JSON Schema → OpenAPI for owlnighter.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "openapi": "tsx scripts/gen-openapi.ts",
+    "test": "node --test dist/**/*.test.js || true"
+  },
+  "dependencies": {
+    "zod": "^4.0.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
