@@ -1,0 +1,32 @@
+{
+  "name": "owlnighter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pull an owl-nighter — a Duolingo-style nightly reading-habit platform. Flutter app + Next.js admin + Fastify API over Supabase, grounded by Gemini and accelerated by Groq.",
+  "license": "MIT",
+  "author": "Alisher Farhadi",
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/api",
+    "apps/admin",
+    "packages/ts/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/ts/**\" run build && pnpm -r --filter \"./apps/**\" run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "contracts:openapi": "pnpm --filter @owlnighter/contracts run openapi",
+    "dev:api": "pnpm --filter @owlnighter/api run dev",
+    "dev:admin": "pnpm --filter @owlnighter/admin run dev",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml,yml}\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}

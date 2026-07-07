@@ -1,0 +1,33 @@
+name: owlnighter_dart
+
+# Melos manages the Dart/Flutter side of the monorepo.
+# See: https://melos.invertase.dev
+packages:
+  - apps/mobile
+  - packages/dart/*
+
+command:
+  version:
+    linkToCommits: true
+    branch: main
+
+scripts:
+  analyze:
+    description: Run `dart analyze` across all Dart/Flutter packages.
+    run: melos exec -- dart analyze --fatal-infos
+
+  format:
+    description: Format all Dart code.
+    run: melos exec -- dart format .
+
+  format-check:
+    description: Verify formatting in CI.
+    run: melos exec -- dart format --set-exit-if-changed .
+
+  test:
+    description: Run unit + widget tests across packages.
+    run: melos exec --dir-exists=test -- flutter test
+
+  gen:
+    description: Run build_runner (drift, json_serializable, etc.).
+    run: melos exec --depends-on=build_runner -- dart run build_runner build --delete-conflicting-outputs
