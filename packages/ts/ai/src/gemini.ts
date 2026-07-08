@@ -41,18 +41,25 @@ export class GeminiAdapter implements ProviderAdapter {
       responseMimeType: "application/json",
     };
     // Grounding and responseSchema are mutually awkward on some model builds, so
-    // only attach the JSON schema when grounding is NOT requested; when grounding
-    // is on we rely on the prompt + JSON mime type and validate app-side.
+    // only attach the JSON schema via responseSchema when grounding is NOT
+    // requested. When grounding IS on we instead inline the JSON Schema into the
+    // prompt (so the model knows the exact property names) and validate app-side.
     const tools: unknown[] = [];
+    let userText = opts.user;
     if (opts.requireGrounding) {
       tools.push({ google_search: {} });
+      const shape = JSON.stringify(toGeminiSchema(opts.schema));
+      userText +=
+        "\n\nRespond with ONLY a JSON object that exactly conforms to this JSON Schema" +
+        " — use the same property names, include all required properties, add no extra" +
+        ` keys, and emit no markdown fences or prose:\n${shape}`;
     } else {
       generationConfig["responseSchema"] = toGeminiSchema(opts.schema);
     }
 
     const body = {
       systemInstruction: { parts: [{ text: opts.system }] },
-      contents: [{ role: "user", parts: [{ text: opts.user }] }],
+      contents: [{ role: "user", parts: [{ text: userText }] }],
       generationConfig,
       ...(tools.length ? { tools } : {}),
     };

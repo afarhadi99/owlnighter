@@ -55,6 +55,12 @@ function loadIdentity(row: typeof schema.books.$inferSelect): BookIdentity {
 function userPrompt(identity: BookIdentity, groundingStatus: string, req: PlanGenerateRequest): string {
   const coverageMode = groundingStatus === "grounded" ? "grounded" : groundingStatus === "partial" ? "preview" : "fallback";
   const facts = {
+    // Identity MUST be in the prompt — without it the model has no idea which
+    // book it is planning for and will hallucinate chapters from another title.
+    title: identity.canonicalTitle,
+    authors: identity.authors,
+    editionLabel: identity.editionLabel,
+    publishedYear: identity.publishedYear,
     pageCount: identity.pageCount,
     languageCode: identity.languageCode,
     coverageMode,
