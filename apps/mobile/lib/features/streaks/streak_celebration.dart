@@ -1,7 +1,6 @@
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
 
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 
 /// Shows the end-of-loop celebration: the streak flame mascot, the new streak
@@ -15,8 +14,7 @@ Future<void> showStreakCelebration(
     isScrollControlled: true,
     backgroundColor: AppColors.night800,
     shape: const RoundedRectangleBorder(
-      borderRadius:
-          BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
     ),
     builder: (_) => _CelebrationSheet(result: result),
   );

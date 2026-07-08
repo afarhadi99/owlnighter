@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import 'auth_controller.dart';
 
@@ -36,11 +35,17 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.nightlight_round,
-                    size: 64, color: AppColors.amber500),
+                const Icon(
+                  Icons.nightlight_round,
+                  size: 64,
+                  color: AppColors.amber500,
+                ),
                 const SizedBox(height: AppSpacing.md),
-                Text('owlnighter', style: AppType.display,
-                    textAlign: TextAlign.center),
+                const Text(
+                  'owlnighter',
+                  style: AppType.display,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Read tonight. Keep your streak.',
@@ -86,18 +91,21 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
-                        : Text('Sign in',
-                            style: AppType.label.copyWith(color: Colors.white)),
+                        : Text(
+                            'Sign in',
+                            style: AppType.label.copyWith(color: Colors.white),
+                          ),
                   ),
                 ),
                 if (state.hasError) ...[
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     '${state.error}',
-                    style:
-                        AppType.caption.copyWith(color: AppColors.danger500),
+                    style: AppType.caption.copyWith(color: AppColors.danger500),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 
 /// Lightweight onboarding: a few value-prop panes → into the library. Kept

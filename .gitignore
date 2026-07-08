@@ -20,6 +20,8 @@ out/
 
 # === Dart / Flutter ===
 .dart_tool/
+# Library packages don't pin a lockfile; the app (apps/mobile) does.
+packages/dart/*/pubspec.lock
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages

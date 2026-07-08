@@ -2,7 +2,6 @@ import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 
 /// Local streak state. Updated from the latest quiz submit result; persisted

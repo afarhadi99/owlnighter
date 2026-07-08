@@ -43,7 +43,8 @@ class SettingsPage extends ConsumerWidget {
             ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout_rounded, color: AppColors.danger500),
+            leading:
+                const Icon(Icons.logout_rounded, color: AppColors.danger500),
             title: const Text('Sign out'),
             onTap: () => ref.read(authRepositoryProvider).signOut(),
           ),

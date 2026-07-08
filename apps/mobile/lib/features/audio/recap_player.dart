@@ -32,10 +32,12 @@ class _RecapPlayerState extends ConsumerState<RecapPlayer> {
       widget.stepId,
       remoteUrl: widget.remoteUrl,
     );
-    if (mounted) setState(() {
-      _available = ok;
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _available = ok;
+        _loading = false;
+      });
+    }
   }
 
   @override

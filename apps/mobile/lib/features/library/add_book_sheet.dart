@@ -48,7 +48,7 @@ class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Add a book', style: AppType.title),
+          const Text('Add a book', style: AppType.title),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _titleController,
@@ -120,7 +120,10 @@ class _CandidateTile extends StatelessWidget {
       subtitle: Text(candidate.authors.join(', ')),
       trailing: adding
           ? const SizedBox(
-              height: 20, width: 20, child: CircularProgressIndicator())
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(),
+            )
           : TextButton(onPressed: onAdd, child: const Text('Add')),
     );
   }

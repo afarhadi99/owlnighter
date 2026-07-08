@@ -1,6 +1,7 @@
 /// Enums mirroring the TS contracts in @owlnighter/contracts (common.ts).
 /// Each carries a [wire] value so JSON (de)serialization stays lossless and
 /// matches the backend's string vocabulary exactly.
+library;
 
 enum AiProvider {
   gemini('gemini'),
@@ -9,8 +10,7 @@ enum AiProvider {
   const AiProvider(this.wire);
   final String wire;
 
-  static AiProvider fromWire(String v) =>
-      values.firstWhere((e) => e.wire == v);
+  static AiProvider fromWire(String v) => values.firstWhere((e) => e.wire == v);
 }
 
 enum PacingMode {
@@ -21,8 +21,7 @@ enum PacingMode {
   const PacingMode(this.wire);
   final String wire;
 
-  static PacingMode fromWire(String v) =>
-      values.firstWhere((e) => e.wire == v);
+  static PacingMode fromWire(String v) => values.firstWhere((e) => e.wire == v);
 }
 
 /// How trustworthy a step's quiz is. Never claim page-level precision the
@@ -36,8 +35,7 @@ enum QuizMode {
   const QuizMode(this.wire);
   final String wire;
 
-  static QuizMode fromWire(String v) =>
-      values.firstWhere((e) => e.wire == v);
+  static QuizMode fromWire(String v) => values.firstWhere((e) => e.wire == v);
 }
 
 enum GroundingStatus {
@@ -75,8 +73,7 @@ enum StepStatus {
   const StepStatus(this.wire);
   final String wire;
 
-  static StepStatus fromWire(String v) =>
-      values.firstWhere((e) => e.wire == v);
+  static StepStatus fromWire(String v) => values.firstWhere((e) => e.wire == v);
 }
 
 enum QuizQuestionKind {

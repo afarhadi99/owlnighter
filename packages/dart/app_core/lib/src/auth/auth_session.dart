@@ -18,8 +18,7 @@ class AuthSession {
   final DateTime? expiresAt;
   final bool isAdmin;
 
-  bool get isExpired =>
-      expiresAt != null && DateTime.now().isAfter(expiresAt!);
+  bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
 
   AuthSession copyWith({
     String? accessToken,

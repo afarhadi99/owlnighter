@@ -48,10 +48,13 @@ class _EmptyLibrary extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.auto_stories_rounded,
-                  size: 56, color: AppColors.indigo400),
+              const Icon(
+                Icons.auto_stories_rounded,
+                size: 56,
+                color: AppColors.indigo400,
+              ),
               const SizedBox(height: AppSpacing.md),
-              Text('No books yet', style: AppType.headline),
+              const Text('No books yet', style: AppType.headline),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'Add a book to build a nightly reading path.',

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../services/analytics/analytics.dart';
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/quiz_mode_badge.dart';
@@ -81,12 +80,18 @@ class _SessionBody extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              const Icon(Icons.menu_book_rounded,
-                  size: 18, color: AppColors.indigo400),
-              const SizedBox(width: AppSpacing.xs),
-              Text(range, style: AppType.label.copyWith(
+              const Icon(
+                Icons.menu_book_rounded,
+                size: 18,
                 color: AppColors.indigo400,
-              )),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                range,
+                style: AppType.label.copyWith(
+                  color: AppColors.indigo400,
+                ),
+              ),
               const Spacer(),
               QuizModeBadge(mode: step.quizMode),
             ],
@@ -104,9 +109,7 @@ class _SessionBody extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: RewardButton(
-              onTap: gen.isLoading
-                  ? () {}
-                  : () => _startQuiz(context, ref),
+              onTap: gen.isLoading ? () {} : () => _startQuiz(context, ref),
               child: _StartButton(loading: gen.isLoading),
             ),
           ),
@@ -125,9 +128,8 @@ class _SessionBody extends ConsumerWidget {
   Future<void> _startQuiz(BuildContext context, WidgetRef ref) async {
     await ref.read(analyticsProvider).sessionStarted(stepId);
     try {
-      final quiz = await ref
-          .read(quizGenControllerProvider.notifier)
-          .generate(stepId);
+      final quiz =
+          await ref.read(quizGenControllerProvider.notifier).generate(stepId);
       if (!context.mounted) return;
       context.push(Routes.quiz(planId, stepId, quiz.quizId));
     } on Exception {

@@ -41,8 +41,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 48, color: AppColors.inkMuted),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: AppColors.inkMuted,
+            ),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Something went wrong',

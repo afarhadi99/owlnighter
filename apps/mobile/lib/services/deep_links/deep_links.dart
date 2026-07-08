@@ -5,6 +5,7 @@
 /// go_router handles the *navigation*; this module only normalizes inbound URIs
 /// (from push opens, email links, admin "open on device") to an in-app route
 /// path go_router understands, so there is a single entry path.
+library;
 
 abstract final class DeepLinks {
   static const String scheme = 'readingpath';
@@ -15,9 +16,8 @@ abstract final class DeepLinks {
     // readingpath://plan/{planId}/step/{stepId}
     if (uri.scheme == scheme) {
       // host = "plan", pathSegments = [planId, "step", stepId]
-      final segs = [uri.host, ...uri.pathSegments]
-          .where((s) => s.isNotEmpty)
-          .toList();
+      final segs =
+          [uri.host, ...uri.pathSegments].where((s) => s.isNotEmpty).toList();
       return _planStepLocation(segs);
     }
     // https://<host>/plan/{planId}/step/{stepId}

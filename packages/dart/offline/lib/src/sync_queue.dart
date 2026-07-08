@@ -89,9 +89,11 @@ class SyncQueue {
     try {
       final now = DateTime.now();
       final rows = await (db.select(db.localSyncQueue)
-            ..where((t) =>
-                t.nextAttemptAt.isSmallerOrEqualValue(now) |
-                t.nextAttemptAt.isNull())
+            ..where(
+              (t) =>
+                  t.nextAttemptAt.isSmallerOrEqualValue(now) |
+                  t.nextAttemptAt.isNull(),
+            )
             ..orderBy([(t) => OrderingTerm.asc(t.id)]))
           .get();
 

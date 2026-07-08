@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/analytics/analytics.dart';
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../nightly_session/nightly_session_controller.dart';
 import '../streaks/streak_celebration.dart';

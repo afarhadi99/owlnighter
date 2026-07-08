@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
-import '../../shared/motion/motion.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/async_value_view.dart';
 import 'path_map_painter.dart';
@@ -46,9 +45,8 @@ class _PathMap extends StatelessWidget {
         final completed = plan.stepStates
             .where((s) => s.status == StepStatus.completed)
             .length;
-        final contentHeight = centers.isEmpty
-            ? constraints.maxHeight
-            : centers.last.dy + 160;
+        final contentHeight =
+            centers.isEmpty ? constraints.maxHeight : centers.last.dy + 160;
 
         return SingleChildScrollView(
           child: SizedBox(

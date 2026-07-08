@@ -35,13 +35,15 @@ class OfflineCache {
   Future<List<UserBook>> library() async {
     final rows = await db.select(db.localUserBooks).get();
     return rows
-        .map((r) => UserBook(
-              id: r.id,
-              bookId: r.bookId,
-              status: UserBookStatus.fromWire(r.status),
-              currentPage: r.currentPage,
-              targetNightlyPages: r.targetNightlyPages,
-            ))
+        .map(
+          (r) => UserBook(
+            id: r.id,
+            bookId: r.bookId,
+            status: UserBookStatus.fromWire(r.status),
+            currentPage: r.currentPage,
+            targetNightlyPages: r.targetNightlyPages,
+          ),
+        )
         .toList();
   }
 
@@ -64,13 +66,15 @@ class OfflineCache {
             ttsAssetId: Value(state.ttsAssetId),
             updatedAt: DateTime.now(),
           ),
-          onConflict: DoUpdate((_) => LocalPlanStepsCompanion(
-                status: Value(state.status.wire),
-                stepJson: Value(jsonEncode(step.toJson())),
-                unlocksAt: Value(state.unlocksAt),
-                ttsAssetId: Value(state.ttsAssetId),
-                updatedAt: Value(DateTime.now()),
-              )),
+          onConflict: DoUpdate(
+            (_) => LocalPlanStepsCompanion(
+              status: Value(state.status.wire),
+              stepJson: Value(jsonEncode(step.toJson())),
+              unlocksAt: Value(state.unlocksAt),
+              ttsAssetId: Value(state.ttsAssetId),
+              updatedAt: Value(DateTime.now()),
+            ),
+          ),
         );
       }
     });

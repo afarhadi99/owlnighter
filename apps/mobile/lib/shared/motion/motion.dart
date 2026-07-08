@@ -1,5 +1,7 @@
 /// Motion re-exports. All Duolingo-style motion primitives live in the
 /// design_system package; features import them through here.
+library;
+
 export 'package:design_system/design_system.dart'
     show
         RewardButton,

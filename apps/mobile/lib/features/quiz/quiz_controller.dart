@@ -48,7 +48,8 @@ class QuizUiState {
       );
 }
 
-class QuizController extends AutoDisposeFamilyNotifier<QuizUiState, QuizInstance> {
+class QuizController
+    extends AutoDisposeFamilyNotifier<QuizUiState, QuizInstance> {
   @override
   QuizUiState build(QuizInstance arg) => QuizUiState(quiz: arg);
 

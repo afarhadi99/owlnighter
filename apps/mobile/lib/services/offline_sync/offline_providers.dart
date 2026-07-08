@@ -35,11 +35,12 @@ Future<SyncOutcome> _handleSyncOp(OwlnighterApi api, SyncOp op) async {
     switch (op.operation) {
       case 'submitQuiz':
         final answers = (op.payload['answers'] as List<dynamic>)
-            .map((e) => QuizAnswer(
-                  questionId: (e as Map<String, dynamic>)['questionId']
-                      as String,
-                  answer: e['answer'] as String,
-                ))
+            .map(
+              (e) => QuizAnswer(
+                questionId: (e as Map<String, dynamic>)['questionId'] as String,
+                answer: e['answer'] as String,
+              ),
+            )
             .toList();
         await api.submitQuiz(
           quizId: op.payload['quizId'] as String,
