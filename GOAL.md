@@ -20,7 +20,7 @@ Legend: ✅ done & buildable · 🟡 authored (not runnable in this env) · 🔨
 | --- | --- | --- |
 | Node / pnpm / TypeScript | ✅ | installed & used to verify TS builds |
 | Docker | ✅ | available for local Postgres/Supabase |
-| Flutter / Dart SDK | ❌ not installed | Flutter source is **authored, not compiled** here |
+| Flutter / Dart SDK | ✅ 3.44.5 / Dart 3.12.2 | installed; app + packages **analyze-clean** |
 | GitHub `gh` CLI / token | ❌ | repo publish requires a decision with the owner |
 | Gemini + Groq keys | ✅ | pulled from sibling repos into local `.env` |
 | Supabase / Deepgram / FCM | 🟡 local | placeholders per instruction; wire real creds later |
@@ -41,7 +41,7 @@ Flutter tree is authored but can't compile here (no SDK).
 | Jobs (TTS/reminders) | `packages/ts/jobs` | ✅ builds |
 | Fastify API (11 routes) | `apps/api` | ✅ typechecks · inject smoke test passes |
 | Next.js admin console | `apps/admin` | ✅ `next build` compiles (11 routes) |
-| Flutter app + Dart pkgs | `apps/mobile` + `packages/dart/*` | 🟡 authored — needs SDK + codegen |
+| Flutter app + Dart pkgs | `apps/mobile` + `packages/dart/*` | ✅ **`flutter analyze` clean** (5/5 pkgs); device build needs Android SDK |
 | Infra (Docker/CloudRun/FCM) | `infra/*` | 🟡 authored — YAML valid, not deployed |
 | CI (GitHub Actions) | `.github/workflows` | ✅ mirrors local green checks |
 
@@ -143,3 +143,5 @@ _Updated as we go. Full detail in `git log`._
 - `build(infra,ci): Docker, Cloud Run, Firebase, Codemagic, GitHub Actions`
 - `fix(ai,api): grounded-prompt shape + book identity in plan prompt`
 - `chore(dev): local Postgres harness (auth shim + seed) and docs`
+- `docs(goal): record end-to-end verification of the reading loop`
+- `fix(mobile): Flutter analyze-clean across app + all Dart packages`
