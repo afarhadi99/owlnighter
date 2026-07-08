@@ -47,6 +47,16 @@ Flutter tree is authored but can't compile here (no SDK).
 
 **Full-workspace `pnpm -r build`: green (all 8 TS/Next projects).**
 
+### End-to-end verification (2026-07-08)
+
+Ran the real API against local Postgres (`:55432`) + live Gemini/Groq keys. The
+**entire reading loop passed**: `books/search` (Google Books + Open Library merge)
+→ `books/ground` (Gemini, confidence 0.95, `pageLevelUnsafe` honoured) →
+`library/books` → `plans/generate` (Gemini, real chapters) → `steps/:id/quiz`
+(router auto-fell-back Groq→Gemini) → `quiz/:id/submit` → **passed 4/4, streak=1,
++20 XP**. Two real bugs found + fixed along the way (grounded-prompt shape;
+missing book identity in the plan prompt). See `docs/local-dev.md` to reproduce.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
@@ -62,27 +72,29 @@ Flutter tree is authored but can't compile here (no SDK).
 
 **Acceptance:** ✅ TS packages typecheck; contracts emit a valid OpenAPI doc.
 
-## Stage 1 — Core reading loop  ⬜
+## Stage 1 — Core reading loop  🟡 (API path verified e2e; Flutter UI unrun)
 
-- ⬜ Book search (Google Books + Open Library merge)
-- ⬜ Reading plan creation + steps
-- ⬜ Path screen with unlockable nodes
-- ⬜ Nightly step screen + quiz generate/submit
-- ⬜ Streak update logic
-- ⬜ Offline cache for current step + quiz (drift)
+- ✅ Book search (Google Books + Open Library merge) — **verified**
+- ✅ Reading plan creation + steps — **verified** (real chapters)
+- 🟡 Path screen with unlockable nodes — Flutter authored, not compiled
+- ✅ Nightly step → quiz generate/submit — **verified** end-to-end
+- ✅ Streak update logic — **verified** (streak=1, +20 XP on pass)
+- 🟡 Offline cache for current step + quiz (drift) — Flutter authored, needs codegen
 
-**Acceptance:** add a book → generated path; quiz completion updates streak; step
-renders offline after prefetch; admin can inspect a plan + quiz provenance.
+**Acceptance:** ✅ add a book → generated path; ✅ quiz completion updates streak.
+Remaining: offline render (Flutter) + admin plan/quiz-provenance inspection UI wiring.
 
-## Stage 2 — Grounding & quality layer  ⬜
+## Stage 2 — Grounding & quality layer  🟡 (pipeline verified)
 
-- ⬜ Gemini grounding pipeline + provenance tables
-- ⬜ Confidence scoring + admin review queue
-- ⬜ `quizMode` derivation + fallbacks
-- ⬜ Groq→Gemini invalid-output retry/fallback
+- ✅ Gemini grounding pipeline + provenance tables — **verified** (persists runs/sources/facts)
+- ✅ Confidence scoring + buckets (auto/review/limited) — **verified**
+- ✅ `quizMode` derivation + clamping to grounding guarantee — **verified** (`fallback` when weak)
+- ✅ Groq→Gemini invalid-output retry/fallback — **verified** (quiz fell back automatically)
+- 🟡 Admin review-queue UI — page exists, list endpoints still TODO
 
-**Acceptance:** every book has a visible grounding status; every fact has source
-provenance; low-confidence titles are reviewable; no fake page-specificity.
+**Acceptance:** ✅ books carry a grounding status; ✅ facts have source provenance;
+✅ no fake page-specificity (`pageLevelUnsafe` → `partial`/`fallback`). Admin
+review-queue wiring remains.
 
 ## Stage 3 — Audio, push & habit reinforcement  ⬜
 
@@ -129,3 +141,5 @@ _Updated as we go. Full detail in `git log`._
 - `feat(admin): Next.js grounding-inspection console`
 - `feat(mobile): Flutter app + Dart packages (feature-first, motion, offline)`
 - `build(infra,ci): Docker, Cloud Run, Firebase, Codemagic, GitHub Actions`
+- `fix(ai,api): grounded-prompt shape + book identity in plan prompt`
+- `chore(dev): local Postgres harness (auth shim + seed) and docs`
