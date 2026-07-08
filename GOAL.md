@@ -8,6 +8,8 @@ inspectable, honestly-scoped monorepo.
 
 This file is the **living checklist**. It is updated as each piece lands.
 
+**Live repo:** https://github.com/afarhadi99/owlnighter (public) — pushed 2026-07-08.
+
 Legend: ✅ done & buildable · 🟡 authored (not runnable in this env) · 🔨 in progress · ⬜ not started
 
 ---
