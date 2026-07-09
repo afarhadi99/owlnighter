@@ -32,8 +32,10 @@ export default function ModelOpsPage() {
         subtitle="Active provider/model per flow, routing rules, and retry/fallback logs. Keys stay backend-only."
       />
       <TodoBanner>
-        add admin routing-config + AI-call-log endpoints; every AI call should
-        carry a provider/model label and request ID (blueprint §observability).
+        still mock: add admin routing-config + AI-call-log endpoints; every AI
+        call should carry a provider/model label and request ID (blueprint
+        §observability). Overview/TTS/Quiz QA now read live admin endpoints —
+        this page still doesn&apos;t have one to call.
       </TodoBanner>
 
       <h2 className="mb-2 font-mono text-sm font-semibold text-slate-200">

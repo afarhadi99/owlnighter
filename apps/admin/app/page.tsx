@@ -1,84 +1,81 @@
-import { PageHeader, TodoBanner } from "@/components/PageHeader";
+import { api, ApiRequestError, API_BASE } from "@/lib/api";
+import type { AdminMetricsResponse } from "@/lib/api";
+import { PageHeader } from "@/components/PageHeader";
 import { StatTile } from "@/components/StatTile";
 import { Badge } from "@/components/Badge";
 
-// Mock observability signals from the blueprint §"Observability recommendations":
-// grounding confidence histogram, quiz invalidation rate, TTS cache hit rate,
-// push send success. Replace each with a real metrics endpoint.
-const groundingBuckets = [
-  { label: "auto ≥0.85", count: 412, tone: "good" as const },
-  { label: "review 0.60–0.84", count: 118, tone: "warn" as const },
-  { label: "limited <0.60", count: 37, tone: "bad" as const },
-];
+export default async function OverviewPage() {
+  let metrics: AdminMetricsResponse | null = null;
+  let error: string | null = null;
+  try {
+    metrics = await api.getMetrics();
+  } catch (err) {
+    error =
+      err instanceof ApiRequestError
+        ? `${err.status}: ${err.body?.error.message ?? err.message}`
+        : (err as Error).message;
+  }
 
-export default function OverviewPage() {
-  const total = groundingBuckets.reduce((n, b) => n + b.count, 0);
+  const groundingTotal = metrics
+    ? metrics.grounding.autoAccepted +
+      metrics.grounding.needsReview +
+      metrics.grounding.limited
+    : 0;
+  const autoAcceptedPct =
+    metrics && groundingTotal > 0
+      ? Math.round((metrics.grounding.autoAccepted / groundingTotal) * 100)
+      : null;
 
   return (
     <div>
       <PageHeader
         title="Overview"
-        subtitle="Operational health at a glance. Every number here is mock data until wired to the metrics API."
+        subtitle="Operational health at a glance, read live from GET /v1/admin/metrics."
       />
 
-      <TodoBanner>
-        no metrics endpoint exists in the contract yet; these tiles read static
-        fixtures.
-      </TodoBanner>
+      {error ? (
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+          GET /v1/admin/metrics failed — {error}
+          <div className="mt-1 text-xs text-muted">
+            Confirm the API is running at {API_BASE}.
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Grounding confidence"
-          value={`${Math.round((groundingBuckets[0]!.count / total) * 100)}%`}
+          value={autoAcceptedPct !== null ? `${autoAcceptedPct}%` : "—"}
           sub="share auto-accepted"
           tone="good"
         >
-          <div className="space-y-1">
-            {groundingBuckets.map((b) => (
-              <div
-                key={b.label}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-muted">{b.label}</span>
-                <Badge tone={b.tone}>{b.count}</Badge>
-              </div>
-            ))}
-          </div>
+          {metrics ? (
+            <div className="space-y-1">
+              <Row label="auto-accepted" count={metrics.grounding.autoAccepted} tone="good" />
+              <Row label="needs review" count={metrics.grounding.needsReview} tone="warn" />
+              <Row label="limited" count={metrics.grounding.limited} tone="bad" />
+            </div>
+          ) : null}
         </StatTile>
 
         <StatTile
-          label="Quiz invalidation rate"
-          value="4.2%"
-          sub="quizzes voided / regenerated (7d)"
+          label="Quiz pass rate"
+          value={metrics ? `${(metrics.quiz.passRate * 100).toFixed(1)}%` : "—"}
+          sub={metrics ? `${metrics.quiz.attempts} attempts` : "attempts"}
           tone="warn"
         />
 
         <StatTile
-          label="TTS cache hit rate"
-          value="91.7%"
+          label="TTS assets"
+          value={metrics ? metrics.tts.assets.toLocaleString() : "—"}
           sub="hash-deduped Deepgram assets"
           tone="good"
         />
 
         <StatTile
-          label="Push send success"
-          value="98.3%"
-          sub="FCM delivered / attempted (24h)"
-          tone="good"
-        />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <StatTile
-          label="Median step latency"
-          value="1.9s"
-          sub="plan → quiz generation p50"
-        />
-        <StatTile
-          label="Offline sync backlog"
-          value="126"
-          sub="queued client mutations across users"
-          tone="warn"
+          label="Books"
+          value={metrics ? metrics.books.total.toLocaleString() : "—"}
+          sub="in catalog"
         />
       </div>
 
@@ -89,6 +86,23 @@ export default function OverviewPage() {
         for invalidation spikes. Provenance for every fact lives under a book&apos;s
         grounding detail page.
       </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  count,
+  tone,
+}: {
+  label: string;
+  count: number;
+  tone: "good" | "warn" | "bad";
+}) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-muted">{label}</span>
+      <Badge tone={tone}>{count}</Badge>
     </div>
   );
 }

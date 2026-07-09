@@ -1,73 +1,67 @@
-import { PageHeader, TodoBanner } from "@/components/PageHeader";
+import { api, ApiRequestError, API_BASE } from "@/lib/api";
+import type { AdminTtsAsset } from "@/lib/api";
+import { PageHeader } from "@/components/PageHeader";
 import { StatTile } from "@/components/StatTile";
 import { DataTable } from "@/components/DataTable";
-import { Badge } from "@/components/Badge";
 
-// Mock Deepgram TTS assets (hash-deduped + cached per TtsGenerateResponse).
-type MockAsset = Record<string, unknown> & {
-  assetKey: string;
-  voiceModel: string;
-  durationMs: number;
-  cached: boolean;
-  hits: number;
-};
+export default async function TtsPage() {
+  let assets: AdminTtsAsset[] = [];
+  let error: string | null = null;
+  try {
+    const data = await api.getTtsAssets();
+    assets = data.assets;
+  } catch (err) {
+    error =
+      err instanceof ApiRequestError
+        ? `${err.status}: ${err.body?.error.message ?? err.message}`
+        : (err as Error).message;
+  }
 
-const assets: MockAsset[] = [
-  { assetKey: "sha256:9ab3…", voiceModel: "aura-2-thalia-en", durationMs: 42000, cached: true, hits: 312 },
-  { assetKey: "sha256:1f0c…", voiceModel: "aura-2-thalia-en", durationMs: 38500, cached: true, hits: 118 },
-  { assetKey: "sha256:77de…", voiceModel: "aura-2-orion-en", durationMs: 51200, cached: false, hits: 1 },
-];
+  const voices = new Set(assets.map((a) => a.voiceModel)).size;
 
-export default function TtsPage() {
   return (
     <div>
       <PageHeader
         title="TTS QA"
-        subtitle="Preview generated audio, cache hit rate, and voice usage. Assets are hash-deduped so identical text reuses one file."
+        subtitle="Cache inspector for generated audio, read live from GET /v1/admin/tts."
       />
-      <TodoBanner>
-        POST /v1/tts/generate exists for creation; add an admin asset-list +
-        signed-URL preview endpoint for playback here.
-      </TodoBanner>
+
+      {error ? (
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+          GET /v1/admin/tts failed — {error}
+          <div className="mt-1 text-xs text-muted">
+            Confirm the API is running at {API_BASE}.
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Cache hit rate" value="91.7%" tone="good" sub="24h" />
-        <StatTile label="Assets generated" value="1,204" sub="lifetime" />
-        <StatTile label="Voices in use" value="2" sub="aura-2 family" />
+        <StatTile label="Assets" value={assets.length} sub="in cache" />
+        <StatTile label="Voices in use" value={voices} sub="distinct voice models" />
+        <StatTile
+          label="Locales"
+          value={new Set(assets.map((a) => a.locale)).size}
+          sub="distinct locales"
+        />
       </div>
 
-      <DataTable<MockAsset>
-        rowKey={(r) => r.assetKey}
+      <DataTable<AdminTtsAsset>
+        rowKey={(r) => r.assetId}
         rows={assets}
         columns={[
           { key: "assetKey", header: "Asset key (content hash)" },
           { key: "voiceModel", header: "Voice" },
+          { key: "locale", header: "Locale" },
           {
             key: "durationMs",
             header: "Duration",
             render: (r) => `${(r.durationMs / 1000).toFixed(1)}s`,
           },
+          { key: "storagePath", header: "Storage path" },
           {
-            key: "cached",
-            header: "Cache",
-            render: (r) => (
-              <Badge tone={r.cached ? "good" : "neutral"}>
-                {r.cached ? "hit" : "miss"}
-              </Badge>
-            ),
-          },
-          { key: "hits", header: "Reuse count" },
-          {
-            key: "actions",
-            header: "",
-            render: () => (
-              <button
-                type="button"
-                className="rounded border border-line px-2 py-0.5 text-xs text-accent hover:bg-ink-700"
-              >
-                ▶ preview
-              </button>
-            ),
+            key: "createdAt",
+            header: "Created",
+            render: (r) => new Date(r.createdAt).toLocaleString(),
           },
         ]}
       />

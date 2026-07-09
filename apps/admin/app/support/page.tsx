@@ -28,8 +28,10 @@ export default function SupportPage() {
         subtitle="Inspect a user's library state, streak, and notification status; run repair actions."
       />
       <TodoBanner>
-        add admin user-lookup + mutation endpoints (streak repair, plan reset).
-        RLS keeps user data server-side; admin uses service-role access.
+        still mock: add admin user-lookup + mutation endpoints (streak
+        repair, plan reset). RLS keeps user data server-side; admin uses
+        service-role access. (GET /v1/library/books now exists but has no
+        per-user scoping yet, so it isn&apos;t wired here.)
       </TodoBanner>
 
       <div className="mb-6 rounded-md border border-line bg-ink-800 p-4">

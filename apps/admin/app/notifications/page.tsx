@@ -27,8 +27,9 @@ export default function NotificationsPage() {
         subtitle="Message templates, delivery success, and push token health. Send rights live backend-only."
       />
       <TodoBanner>
-        POST /v1/push/register handles token registration; add admin
-        template + delivery-metrics endpoints.
+        still mock: POST /v1/push/register handles token registration, but no
+        admin template + delivery-metrics endpoints exist yet (unlike Overview/
+        TTS/Quiz QA, which now read live admin endpoints).
       </TodoBanner>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">

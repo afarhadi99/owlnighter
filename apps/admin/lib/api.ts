@@ -106,6 +106,61 @@ export interface AdminOverrideRequest {
   reason: string;
 }
 
+// ---- admin metrics (Overview) ----
+export interface AdminMetricsResponse {
+  grounding: {
+    autoAccepted: number;
+    needsReview: number;
+    limited: number;
+  };
+  quiz: {
+    attempts: number;
+    passRate: number;
+  };
+  tts: {
+    assets: number;
+  };
+  books: {
+    total: number;
+  };
+}
+
+// ---- admin TTS cache inspector ----
+export interface AdminTtsAsset {
+  [key: string]: unknown;
+  assetId: string;
+  assetKey: string;
+  voiceModel: string;
+  locale: string;
+  storagePath: string;
+  durationMs: number;
+  createdAt: string;
+}
+
+export interface AdminTtsResponse {
+  assets: AdminTtsAsset[];
+}
+
+// ---- admin quiz QA ----
+export interface AdminQuizInvalidateRequest {
+  reason: string;
+}
+
+export interface AdminQuizInvalidateResponse {
+  quizId: string;
+  invalidated: boolean;
+}
+
+// ---- library (support page lookups) ----
+export interface LibraryBook {
+  id: string;
+  [key: string]: unknown;
+}
+
+export interface LibraryBooksResponse {
+  books: LibraryBook[];
+}
+
 // ---- error envelope ----
 export interface ApiError {
   error: {
@@ -175,5 +230,24 @@ export const api = {
       `/v1/admin/books/${encodeURIComponent(bookId)}/override`,
       { method: "POST", admin: true, body: JSON.stringify(body) },
     );
+  },
+
+  getMetrics() {
+    return request<AdminMetricsResponse>("/v1/admin/metrics", { admin: true });
+  },
+
+  getTtsAssets() {
+    return request<AdminTtsResponse>("/v1/admin/tts", { admin: true });
+  },
+
+  invalidateQuiz(quizId: string, body: AdminQuizInvalidateRequest) {
+    return request<AdminQuizInvalidateResponse>(
+      `/v1/admin/quiz/${encodeURIComponent(quizId)}/invalidate`,
+      { method: "POST", admin: true, body: JSON.stringify(body) },
+    );
+  },
+
+  getLibraryBooks() {
+    return request<LibraryBooksResponse>("/v1/library/books");
   },
 };

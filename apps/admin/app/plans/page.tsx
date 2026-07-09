@@ -27,7 +27,9 @@ export default function PlansPage() {
         subtitle="Inspect generated nightly path steps, pacing, and the quiz mode each step will use."
       />
       <TodoBanner>
-        wire to GET /v1/plans/:id; add an admin plan-search endpoint to list plans.
+        still mock: wire to GET /v1/plans/:id; add an admin plan-search
+        endpoint to list plans. (Overview/TTS/Quiz QA now read live admin
+        endpoints — this page still doesn&apos;t have one to call.)
       </TodoBanner>
 
       <div className="mb-4 flex gap-2 text-xs text-muted">
