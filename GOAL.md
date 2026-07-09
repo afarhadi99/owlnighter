@@ -20,7 +20,8 @@ Legend: ✅ done & buildable · 🟡 authored (not runnable in this env) · 🔨
 | --- | --- | --- |
 | Node / pnpm / TypeScript | ✅ | installed & used to verify TS builds |
 | Docker | ✅ | available for local Postgres/Supabase |
-| Flutter / Dart SDK | ✅ 3.44.5 / Dart 3.12.2 | installed; app + packages **analyze-clean** |
+| Flutter / Dart SDK | ✅ 3.44.5 / Dart 3.12.2 | installed; **builds Android debug APK** |
+| Android SDK | ✅ build-capable | platforms 34/36, build-tools ≤36.1.0, AVD `Medium_Phone` |
 | GitHub `gh` CLI / token | ❌ | repo publish requires a decision with the owner |
 | Gemini + Groq keys | ✅ | pulled from sibling repos into local `.env` |
 | Supabase / Deepgram / FCM | 🟡 local | placeholders per instruction; wire real creds later |
@@ -41,7 +42,7 @@ Flutter tree is authored but can't compile here (no SDK).
 | Jobs (TTS/reminders) | `packages/ts/jobs` | ✅ builds |
 | Fastify API (11 routes) | `apps/api` | ✅ typechecks · inject smoke test passes |
 | Next.js admin console | `apps/admin` | ✅ `next build` compiles (11 routes) |
-| Flutter app + Dart pkgs | `apps/mobile` + `packages/dart/*` | ✅ **`flutter analyze` clean** (5/5 pkgs); device build needs Android SDK |
+| Flutter app + Dart pkgs | `apps/mobile` + `packages/dart/*` | ✅ **builds Android debug APK** (212 MB) · analyze-clean · 11 widget tests pass |
 | Infra (Docker/CloudRun/FCM) | `infra/*` | 🟡 authored — YAML valid, not deployed |
 | CI (GitHub Actions) | `.github/workflows` | ✅ mirrors local green checks |
 
@@ -56,6 +57,18 @@ Ran the real API against local Postgres (`:55432`) + live Gemini/Groq keys. The
 (router auto-fell-back Groq→Gemini) → `quiz/:id/submit` → **passed 4/4, streak=1,
 +20 XP**. Two real bugs found + fixed along the way (grounded-prompt shape;
 missing book identity in the plan prompt). See `docs/local-dev.md` to reproduce.
+
+### Round 2 — parallel testing + implementation (2026-07-09)
+
+Fanned out 3 agents on disjoint domains (opus/high for mobile + backend,
+sonnet/medium for admin). Results, all **verified by the controller**:
+- **Mobile:** Android platform generated; **`flutter build apk --debug` → 212 MB APK**;
+  11 widget tests pass; analyze clean. Android SDK now build-capable (AVD present).
+- **Backend:** 5 new endpoints (openapi now **15 paths**) — library list, step-start,
+  admin metrics/tts/quiz-invalidate; migration `0003` (quiz invalidation); Deepgram
+  TTS wired with graceful 503. **15/15 node:test** pass; all 5 endpoints exercised
+  **live against Postgres** (200s).
+- **Admin:** Overview + TTS inspector + Quiz-QA wired to the live endpoints; `next build` compiles.
 
 ---
 
@@ -145,3 +158,7 @@ _Updated as we go. Full detail in `git log`._
 - `chore(dev): local Postgres harness (auth shim + seed) and docs`
 - `docs(goal): record end-to-end verification of the reading loop`
 - `fix(mobile): Flutter analyze-clean across app + all Dart packages`
+- `docs(goal): Flutter SDK installed; app + packages analyze-clean`
+- `feat(api): library list, step-start, admin metrics/tts/quiz-invalidate + Deepgram TTS + tests`
+- `feat(admin): wire Overview, TTS inspector, and Quiz QA to live endpoints`
+- `feat(mobile): Android platform + debug APK builds; widget tests`
