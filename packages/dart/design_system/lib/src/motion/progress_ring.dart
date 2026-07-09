@@ -35,12 +35,19 @@ class ProgressRing extends StatefulWidget {
 
 class _ProgressRingState extends State<ProgressRing>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppMotion.slow,
-  );
-  late Animation<double> _animation =
-      AlwaysStoppedAnimation<double>(widget.progress);
+  // Created in initState (not as a lazy `late` initializer): otherwise a ring
+  // that is disposed without its progress ever changing would first construct
+  // the controller inside dispose(), calling createTicker() during unmount and
+  // throwing "Looking up a deactivated widget's ancestor is unsafe".
+  late final AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: AppMotion.slow);
+    _animation = AlwaysStoppedAnimation<double>(widget.progress);
+  }
 
   @override
   void didUpdateWidget(covariant ProgressRing oldWidget) {

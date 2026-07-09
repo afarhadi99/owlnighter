@@ -1,0 +1,5 @@
+package app.owlnighter
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
