@@ -1,13 +1,37 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
-import { type AddLibraryBookRequest, type LibraryBook } from "@owlnighter/contracts";
+import {
+  type AddLibraryBookRequest,
+  type LibraryBook,
+  type LibraryBooksResponse,
+} from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
 import { notFound } from "../plugins/errors.js";
 import { requireUser } from "../plugins/auth.js";
 import { register } from "./helpers.js";
 
 export function registerLibraryRoutes(app: FastifyInstance, deps: Deps): void {
+  register<never, LibraryBooksResponse>(app, deps, "listLibraryBooks", async ({ req }) => {
+    const user = requireUser(req);
+    const rows = await deps.db
+      .select()
+      .from(schema.userBooks)
+      .where(eq(schema.userBooks.userId, user.id))
+      .orderBy(desc(schema.userBooks.createdAt));
+    const books = rows.map((r): LibraryBook => {
+      const b: LibraryBook = {
+        id: r.id,
+        bookId: r.bookId,
+        status: r.status as LibraryBook["status"],
+      };
+      if (r.currentPage != null) b.currentPage = r.currentPage;
+      if (r.targetNightlyPages != null) b.targetNightlyPages = r.targetNightlyPages;
+      return b;
+    });
+    return { books };
+  });
+
   register<AddLibraryBookRequest, LibraryBook>(app, deps, "addLibraryBook", async ({ req, body }) => {
     const user = requireUser(req);
 

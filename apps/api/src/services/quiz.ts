@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
 import { contentHash } from "@owlnighter/shared";
 import {
@@ -87,11 +87,19 @@ export async function generateStepQuiz(deps: Deps, user: AuthUser, stepId: strin
   const mode = effectiveMode(step.quizMode as QuizMode, req);
 
   // Reuse an existing quiz for this step unless regeneration was requested.
+  // Invalidated quizzes (retired by an admin) are skipped so the reader gets a
+  // fresh generation instead of the retired one.
   if (!req.regenerate) {
     const existing = await deps.db
       .select()
       .from(schema.quizInstances)
-      .where(and(eq(schema.quizInstances.stepId, stepId), eq(schema.quizInstances.userId, user.id)))
+      .where(
+        and(
+          eq(schema.quizInstances.stepId, stepId),
+          eq(schema.quizInstances.userId, user.id),
+          isNull(schema.quizInstances.invalidatedAt),
+        ),
+      )
       .orderBy(desc(schema.quizInstances.createdAt))
       .limit(1);
     if (existing[0]) return loadQuizInstance(deps, existing[0]);

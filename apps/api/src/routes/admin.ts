@@ -1,13 +1,18 @@
 import type { FastifyInstance } from "fastify";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
 import {
   type AdminGroundingResponse,
+  type AdminMetricsResponse,
   type AdminOverrideRequest,
+  type AdminQuizInvalidateRequest,
+  type AdminQuizInvalidateResponse,
+  type AdminTtsResponse,
   type GroundingFact,
   type GroundingRun,
   type GroundingSource,
   type GroundingStatus,
+  type TtsAssetSummary,
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
 import { badRequest, notFound } from "../plugins/errors.js";
@@ -132,4 +137,85 @@ export function registerAdminRoutes(app: FastifyInstance, deps: Deps): void {
 
     deps.config.logger.info({ bookId, reason: body.reason, trustLock: body.trustLock }, "admin override applied");
   });
+
+  register<never, AdminMetricsResponse>(app, deps, "adminGetMetrics", async () => {
+    // Grounding buckets are threshold-derived (env-configured), so we bucket
+    // per-book confidence in JS rather than in SQL. The same scan yields the
+    // total book count, so no extra query is needed for that tile.
+    const bookRows = await deps.db.select({ confidence: schema.books.metadataConfidence }).from(schema.books);
+    let autoAccepted = 0;
+    let needsReview = 0;
+    let limited = 0;
+    for (const b of bookRows) {
+      const bucket = reviewBucketFor(deps, Number(b.confidence));
+      if (bucket === "auto_accepted") autoAccepted++;
+      else if (bucket === "needs_review") needsReview++;
+      else limited++;
+    }
+
+    const attemptsRows = await deps.db.select({ value: count() }).from(schema.quizAttempts);
+    const passedRows = await deps.db
+      .select({ value: count() })
+      .from(schema.quizAttempts)
+      .where(eq(schema.quizAttempts.passed, true));
+    const attempts = attemptsRows[0]?.value ?? 0;
+    const passed = passedRows[0]?.value ?? 0;
+    const passRate = attempts > 0 ? passed / attempts : 0;
+
+    const ttsRows = await deps.db.select({ value: count() }).from(schema.ttsAssets);
+
+    return {
+      grounding: { autoAccepted, needsReview, limited },
+      quiz: { attempts, passRate },
+      tts: { assets: ttsRows[0]?.value ?? 0 },
+      books: { total: bookRows.length },
+    };
+  });
+
+  register<never, AdminTtsResponse>(app, deps, "adminGetTts", async () => {
+    const rows = await deps.db
+      .select()
+      .from(schema.ttsAssets)
+      .orderBy(desc(schema.ttsAssets.createdAt))
+      .limit(200);
+    const assets: TtsAssetSummary[] = rows.map((a) => {
+      const s: TtsAssetSummary = {
+        id: a.id,
+        assetKey: a.assetKey,
+        provider: a.provider,
+        voiceModel: a.voiceModel,
+        locale: a.locale,
+        storagePath: a.storagePath,
+        createdAt: a.createdAt.toISOString(),
+      };
+      if (a.durationMs != null) s.durationMs = a.durationMs;
+      return s;
+    });
+    return { assets };
+  });
+
+  register<AdminQuizInvalidateRequest, AdminQuizInvalidateResponse>(
+    app,
+    deps,
+    "adminInvalidateQuiz",
+    async ({ params, body }) => {
+      const quizId = params["id"];
+      if (!quizId) throw badRequest("Missing quiz id.");
+
+      const rows = await deps.db
+        .select({ id: schema.quizInstances.id })
+        .from(schema.quizInstances)
+        .where(eq(schema.quizInstances.id, quizId))
+        .limit(1);
+      if (!rows[0]) throw notFound("Quiz not found.");
+
+      await deps.db
+        .update(schema.quizInstances)
+        .set({ invalidatedAt: new Date(), invalidationReason: body.reason })
+        .where(eq(schema.quizInstances.id, quizId));
+
+      deps.config.logger.info({ quizId, reason: body.reason }, "quiz invalidated");
+      return { quizId, invalidated: true };
+    },
+  );
 }

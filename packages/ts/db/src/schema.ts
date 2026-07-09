@@ -104,6 +104,9 @@ export const quizInstances = pgTable("quiz_instances", {
   provider: text("provider").notNull(),
   providerModel: text("provider_model").notNull(),
   confidence: numeric("confidence").notNull().default("0.0"),
+  // Set by an admin (0003) to retire a bad quiz; skipped when reusing a step's quiz.
+  invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+  invalidationReason: text("invalidation_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

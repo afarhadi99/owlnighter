@@ -9,9 +9,17 @@ import { PlanGenerateRequest, PlanResponse } from "./plan.js";
 import { QuizGenerateRequest, QuizInstance, QuizSubmitRequest, QuizSubmitResponse } from "./quiz.js";
 import { AdminGroundingResponse, AdminOverrideRequest } from "./grounding.js";
 import {
+  AdminMetricsResponse,
+  AdminQuizInvalidateRequest,
+  AdminQuizInvalidateResponse,
+  AdminTtsResponse,
+} from "./admin.js";
+import {
   AddLibraryBookRequest,
   LibraryBook,
+  LibraryBooksResponse,
   PushRegisterRequest,
+  StepStartResponse,
   TtsGenerateRequest,
   TtsGenerateResponse,
 } from "./misc.js";
@@ -56,6 +64,15 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     response: BookGroundResponse,
   },
   {
+    method: "get",
+    path: "/v1/library/books",
+    operationId: "listLibraryBooks",
+    summary: "List the authenticated user's library books.",
+    tag: "library",
+    auth: "user",
+    response: LibraryBooksResponse,
+  },
+  {
     method: "post",
     path: "/v1/library/books",
     operationId: "addLibraryBook",
@@ -83,6 +100,15 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     tag: "plans",
     auth: "user",
     response: PlanResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/steps/:id/start",
+    operationId: "startStep",
+    summary: "Open (or reuse) a reading session for a step.",
+    tag: "steps",
+    auth: "user",
+    response: StepStartResponse,
   },
   {
     method: "post",
@@ -140,5 +166,33 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     tag: "admin",
     auth: "admin",
     request: AdminOverrideRequest,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/metrics",
+    operationId: "adminGetMetrics",
+    summary: "Dashboard tiles: grounding buckets, quiz pass rate, TTS assets, book count.",
+    tag: "admin",
+    auth: "admin",
+    response: AdminMetricsResponse,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/tts",
+    operationId: "adminGetTts",
+    summary: "List cached TTS assets for the cache inspector.",
+    tag: "admin",
+    auth: "admin",
+    response: AdminTtsResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/quiz/:id/invalidate",
+    operationId: "adminInvalidateQuiz",
+    summary: "Mark a quiz invalid so it is not reused; records a reason.",
+    tag: "admin",
+    auth: "admin",
+    request: AdminQuizInvalidateRequest,
+    response: AdminQuizInvalidateResponse,
   },
 ] as const;

@@ -22,6 +22,19 @@ export const LibraryBook = z.object({
 });
 export type LibraryBook = z.infer<typeof LibraryBook>;
 
+// ---- GET /v1/library/books ----
+export const LibraryBooksResponse = z.object({ books: z.array(LibraryBook) });
+export type LibraryBooksResponse = z.infer<typeof LibraryBooksResponse>;
+
+// ---- POST /v1/steps/:id/start ----
+/** Opens (or reuses) a reading_sessions row for a plan step. */
+export const StepStartResponse = z.object({
+  sessionId: Uuid,
+  stepId: Uuid,
+  startedAt: z.iso.datetime(),
+});
+export type StepStartResponse = z.infer<typeof StepStartResponse>;
+
 // ---- POST /v1/push/register ----
 export const PushRegisterRequest = z.object({
   token: z.string().min(1),

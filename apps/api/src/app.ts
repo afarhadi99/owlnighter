@@ -9,6 +9,7 @@ import { registerErrorHandler } from "./plugins/errors.js";
 import { registerBookRoutes } from "./routes/books.js";
 import { registerLibraryRoutes } from "./routes/library.js";
 import { registerPlanRoutes } from "./routes/plans.js";
+import { registerStepRoutes } from "./routes/steps.js";
 import { registerQuizRoutes } from "./routes/quiz.js";
 import { registerPushRoutes } from "./routes/push.js";
 import { registerTtsRoutes } from "./routes/tts.js";
@@ -51,6 +52,7 @@ export async function buildApp(deps: Deps = buildDeps()): Promise<FastifyInstanc
   registerBookRoutes(app, deps);
   registerLibraryRoutes(app, deps);
   registerPlanRoutes(app, deps);
+  registerStepRoutes(app, deps);
   registerQuizRoutes(app, deps);
   registerPushRoutes(app, deps);
   registerTtsRoutes(app, deps);
