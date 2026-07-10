@@ -28,10 +28,11 @@ export default function SupportPage() {
         subtitle="Inspect a user's library state, streak, and notification status; run repair actions."
       />
       <TodoBanner>
-        still mock: add admin user-lookup + mutation endpoints (streak
-        repair, plan reset). RLS keeps user data server-side; admin uses
-        service-role access. (GET /v1/library/books now exists but has no
-        per-user scoping yet, so it isn&apos;t wired here.)
+        no backend endpoint yet — showing sample shape. There is no admin
+        user-lookup or mutation API (streak repair, plan reset, token
+        reissue, book archive) for this to call; everything below is mock
+        data, not a live user. (GET /v1/library/books exists but has no
+        per-user scoping yet, so it isn&apos;t wired here either.)
       </TodoBanner>
 
       <div className="mb-6 rounded-md border border-line bg-ink-800 p-4">

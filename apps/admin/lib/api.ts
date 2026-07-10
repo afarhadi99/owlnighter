@@ -194,6 +194,34 @@ export interface AdminPlansResponse {
   plans: AdminPlanListItem[];
 }
 
+// ---- admin push test ----
+export type PushType =
+  | "nightly_reminder"
+  | "streak_warning"
+  | "completion_celebration"
+  | "re_engagement";
+
+export interface AdminPushTestRequest {
+  userId: string;
+  type: PushType;
+}
+
+export interface AdminPushTestTokenResult {
+  token: string;
+  platform: string;
+  status: "sent" | "not_configured" | "error";
+  detail?: string;
+}
+
+export interface AdminPushTestResponse {
+  userId: string;
+  type: PushType;
+  /** True only when FCM_PROJECT_ID and FCM_SERVICE_ACCOUNT_JSON are both set. */
+  configured: boolean;
+  notification: { title: string; body: string };
+  results: AdminPushTestTokenResult[];
+}
+
 // ---- library (support page lookups) ----
 export interface LibraryBook {
   id: string;
@@ -309,5 +337,13 @@ export const api = {
 
   getLibraryBooks() {
     return request<LibraryBooksResponse>("/v1/library/books");
+  },
+
+  sendTestPush(userId: string, type: PushType) {
+    return request<AdminPushTestResponse>("/v1/admin/push/test", {
+      method: "POST",
+      admin: true,
+      body: JSON.stringify({ userId, type } satisfies AdminPushTestRequest),
+    });
   },
 };
