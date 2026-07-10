@@ -68,6 +68,14 @@ class OwlnighterApi {
     return GroundedBook.fromJson(json);
   }
 
+  // ---- GET /v1/library/books → listLibraryBooks ----
+  Future<List<UserBook>> listLibraryBooks() async {
+    final json = await _get('/v1/library/books');
+    return (json['books'] as List<dynamic>)
+        .map((e) => UserBook.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ---- POST /v1/library/books → addLibraryBook ----
   Future<UserBook> addLibraryBook({
     required String bookId,

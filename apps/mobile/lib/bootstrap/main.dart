@@ -28,7 +28,14 @@ void main() {
 
       // Restore session from secure storage before we render (drives the
       // router's auth redirect on first frame).
-      await container.read(authRepositoryProvider).restore();
+      final restored = await container.read(authRepositoryProvider).restore();
+
+      // Debug builds auto-enter as the seeded dev user so the app boots
+      // straight into the core loop against the live local API. Release keeps
+      // the real login path untouched.
+      if (kDebugMode && restored == null) {
+        await container.read(authRepositoryProvider).signInAsDev();
+      }
 
       runApp(
         UncontrolledProviderScope(

@@ -25,6 +25,16 @@ class AuthController extends AutoDisposeAsyncNotifier<void> {
       () => ref.read(authRepositoryProvider).signInWithMagicLink(email),
     );
   }
+
+  /// Debug-only: authenticate as the seeded dev user (backs the
+  /// "Continue as dev" button). No-op path in release since the button is only
+  /// shown under kDebugMode.
+  Future<void> continueAsDev() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(authRepositoryProvider).signInAsDev();
+    });
+  }
 }
 
 final authControllerProvider =

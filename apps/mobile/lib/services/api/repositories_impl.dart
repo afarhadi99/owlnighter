@@ -61,14 +61,18 @@ class LibraryRepositoryImpl implements LibraryRepository {
 
   @override
   Future<List<UserBook>> listLibrary() async {
-    // Offline-first: serve cache immediately if the network is down.
+    // Network-first: GET /v1/library/books is the source of truth; warm the
+    // cache so the library still renders when offline. Fall back to the cache
+    // only on a connectivity failure.
     try {
-      // The API has no list endpoint in the contract yet; the cache is the
-      // source of truth for the local library view. When a list endpoint lands
-      // this is where we'd refresh + warm the cache.
-      return await cache.library();
-    } on Exception {
-      return cache.library();
+      final books = await api.listLibraryBooks();
+      for (final book in books) {
+        await cache.upsertUserBook(book);
+      }
+      return books;
+    } on ApiException catch (e) {
+      if (e.isOffline) return cache.library();
+      rethrow;
     }
   }
 }

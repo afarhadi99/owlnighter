@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -115,6 +116,19 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       .magicLink(_email.text),
                   child: const Text('Email me a magic link'),
                 ),
+                // Debug-only fast path into the app as the seeded dev user.
+                if (kDebugMode) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  OutlinedButton.icon(
+                    onPressed: state.isLoading
+                        ? null
+                        : () => ref
+                            .read(authControllerProvider.notifier)
+                            .continueAsDev(),
+                    icon: const Icon(Icons.developer_mode),
+                    label: const Text('Continue as dev'),
+                  ),
+                ],
               ],
             ),
           ),

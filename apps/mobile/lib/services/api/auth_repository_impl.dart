@@ -8,6 +8,13 @@ import 'session_provider.dart';
 
 const _kSessionKey = 'owlnighter.session.v1';
 
+/// The fixed dev identity seeded in the local DB. The API maps
+/// `Authorization: Bearer DEV` to this user (is_admin=true) under
+/// `NODE_ENV=development`, so a session whose access token is literally `DEV`
+/// authenticates as the dev user with no real credential exchange.
+const _kDevUserId = '00000000-0000-0000-0000-0000000000de';
+const _kDevAccessToken = 'DEV';
+
 /// Auth repository backed by flutter_secure_storage. Only session tokens are
 /// persisted, and only here — never in Drift or shared prefs.
 ///
@@ -32,6 +39,19 @@ class AuthRepositoryImpl implements AuthRepository {
         AuthSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     session.set(restored);
     return restored;
+  }
+
+  /// Debug-only shortcut: mint the seeded dev session so the app can reach the
+  /// live local API without a real login. The token (`DEV`) is what makes
+  /// api_client send `Authorization: Bearer DEV`. Never used in release builds.
+  Future<AuthSession> signInAsDev() async {
+    const devSession = AuthSession(
+      userId: _kDevUserId,
+      accessToken: _kDevAccessToken,
+      isAdmin: true,
+    );
+    await persist(devSession);
+    return devSession;
   }
 
   @override
