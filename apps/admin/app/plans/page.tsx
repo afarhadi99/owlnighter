@@ -1,74 +1,89 @@
-import { PageHeader, TodoBanner } from "@/components/PageHeader";
+import { api, ApiRequestError, API_BASE } from "@/lib/api";
+import type { AdminPlanListItem } from "@/lib/api";
+import { PageHeader } from "@/components/PageHeader";
 import { DataTable } from "@/components/DataTable";
-import { Badge, quizModeTone } from "@/components/Badge";
+import { Badge } from "@/components/Badge";
 
-// Mock plan steps mirroring PlanStep from the contract. Real data: GET /v1/plans/:id.
-// No admin list endpoint exists yet — see follow-ups.
-type MockStep = Record<string, unknown> & {
-  stepIndex: number;
-  title: string;
-  pageStart?: number;
-  pageEnd?: number;
-  quizMode: string;
-  confidence: number;
-};
+const pacingTone = {
+  gentle: "info",
+  standard: "neutral",
+  intensive: "warn",
+} as const;
 
-const steps: MockStep[] = [
-  { stepIndex: 0, title: "Ch. 1 — Down the Rabbit-Hole", pageStart: 1, pageEnd: 14, quizMode: "grounded", confidence: 0.92 },
-  { stepIndex: 1, title: "Ch. 2 — The Pool of Tears", pageStart: 15, pageEnd: 28, quizMode: "preview", confidence: 0.71 },
-  { stepIndex: 2, title: "Ch. 3 — A Caucus-Race", pageStart: 29, pageEnd: 40, quizMode: "fallback", confidence: 0.48 },
-];
+export default async function PlansPage() {
+  let plans: AdminPlanListItem[] = [];
+  let error: string | null = null;
+  try {
+    const data = await api.getPlans();
+    plans = data.plans;
+  } catch (err) {
+    error =
+      err instanceof ApiRequestError
+        ? `${err.status}: ${err.body?.error.message ?? err.message}`
+        : (err as Error).message;
+  }
 
-export default function PlansPage() {
   return (
     <div>
       <PageHeader
         title="Plan QA"
-        subtitle="Inspect generated nightly path steps, pacing, and the quiz mode each step will use."
+        subtitle="Generated nightly reading plans, read live from GET /v1/admin/plans."
       />
-      <TodoBanner>
-        still mock: wire to GET /v1/plans/:id; add an admin plan-search
-        endpoint to list plans. (Overview/TTS/Quiz QA now read live admin
-        endpoints — this page still doesn&apos;t have one to call.)
-      </TodoBanner>
 
-      <div className="mb-4 flex gap-2 text-xs text-muted">
-        <Badge tone="info">gemini/gemini-3.5-flash</Badge>
-        <span>· pacing: standard · nightly goal: 12 pp · version 2</span>
-      </div>
+      {error ? (
+        <div className="mb-4 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+          GET /v1/admin/plans failed — {error}
+          <div className="mt-1 text-xs text-muted">
+            Confirm the API is running at {API_BASE}.
+          </div>
+        </div>
+      ) : null}
 
-      <DataTable<MockStep>
-        rowKey={(r) => String(r.stepIndex)}
-        rows={steps}
+      <DataTable<AdminPlanListItem>
+        rowKey={(r) => r.planId}
+        rows={plans}
         columns={[
-          { key: "stepIndex", header: "#", render: (r) => `#${r.stepIndex}` },
-          { key: "title", header: "Step" },
+          { key: "planId", header: "Plan" },
+          { key: "bookId", header: "Book" },
           {
-            key: "pages",
-            header: "Pages",
-            render: (r) =>
-              r.pageStart != null ? `${r.pageStart}–${r.pageEnd}` : "—",
+            key: "planVersion",
+            header: "Version",
+            render: (r) => `v${r.planVersion}`,
           },
           {
-            key: "quizMode",
-            header: "Quiz mode",
+            key: "provider",
+            header: "Provider/model",
             render: (r) => (
-              <Badge tone={quizModeTone(r.quizMode)}>{r.quizMode}</Badge>
+              <span className="font-mono text-xs text-muted">
+                {r.provider}/{r.providerModel}
+              </span>
             ),
           },
           {
-            key: "confidence",
-            header: "Confidence",
-            render: (r) => r.confidence.toFixed(2),
+            key: "pacingMode",
+            header: "Pacing",
+            render: (r) => (
+              <Badge tone={pacingTone[r.pacingMode]}>{r.pacingMode}</Badge>
+            ),
+          },
+          {
+            key: "nightlyGoalPages",
+            header: "Nightly goal",
+            render: (r) => `${r.nightlyGoalPages} pp`,
+          },
+          { key: "stepCount", header: "Steps" },
+          {
+            key: "startsOn",
+            header: "Starts",
+            render: (r) => new Date(r.startsOn).toLocaleDateString(),
+          },
+          {
+            key: "createdAt",
+            header: "Created",
+            render: (r) => new Date(r.createdAt).toLocaleString(),
           },
         ]}
       />
-
-      <p className="mt-4 text-xs text-muted">
-        Steps in <span className="text-bad">fallback</span> mode cannot back
-        page-specific questions — the plan honestly degrades rather than
-        pretending precision (blueprint §copyright safeguards).
-      </p>
     </div>
   );
 }

@@ -151,6 +151,49 @@ export interface AdminQuizInvalidateResponse {
   invalidated: boolean;
 }
 
+export interface AdminQuizListItem {
+  [key: string]: unknown;
+  quizId: string;
+  stepId: string;
+  userId: string;
+  quizMode: QuizMode;
+  provider: string;
+  providerModel: string;
+  confidence: Confidence;
+  invalidatedAt?: string | null;
+  questionCount: number;
+  createdAt: string;
+}
+
+export interface AdminQuizzesResponse {
+  quizzes: AdminQuizListItem[];
+}
+
+export interface AdminQuizzesParams {
+  stepId?: string;
+  limit?: number;
+}
+
+// ---- admin plans QA ----
+export interface AdminPlanListItem {
+  [key: string]: unknown;
+  planId: string;
+  userId: string;
+  bookId: string;
+  provider: string;
+  providerModel: string;
+  planVersion: number;
+  pacingMode: PacingMode;
+  nightlyGoalPages: number;
+  startsOn: string;
+  createdAt: string;
+  stepCount: number;
+}
+
+export interface AdminPlansResponse {
+  plans: AdminPlanListItem[];
+}
+
 // ---- library (support page lookups) ----
 export interface LibraryBook {
   id: string;
@@ -245,6 +288,23 @@ export const api = {
       `/v1/admin/quiz/${encodeURIComponent(quizId)}/invalidate`,
       { method: "POST", admin: true, body: JSON.stringify(body) },
     );
+  },
+
+  getQuizzes(params?: AdminQuizzesParams) {
+    const qs = new URLSearchParams();
+    if (params?.stepId) qs.set("stepId", params.stepId);
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return request<AdminQuizzesResponse>(`/v1/admin/quizzes${suffix}`, {
+      admin: true,
+    });
+  },
+
+  getPlans(limit?: number) {
+    const suffix = limit != null ? `?limit=${limit}` : "";
+    return request<AdminPlansResponse>(`/v1/admin/plans${suffix}`, {
+      admin: true,
+    });
   },
 
   getLibraryBooks() {
