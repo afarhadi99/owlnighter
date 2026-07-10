@@ -25,4 +25,4 @@ export function getConfig(): AppConfig {
 }
 
 /** Fixed dev user id used when a DEV bearer token is presented in development. */
-export const DEV_USER_ID = "00000000-0000-0000-0000-0000000000de";
+export const DEV_USER_ID = "00000000-0000-4000-8000-0000000000de";

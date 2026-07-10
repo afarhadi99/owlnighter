@@ -701,12 +701,41 @@
                             "type": "integer",
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "authors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "coverUrl": {
+                            "type": "string"
+                          },
+                          "groundingStatus": {
+                            "type": "string",
+                            "enum": [
+                              "pending",
+                              "grounded",
+                              "partial",
+                              "blocked"
+                            ]
+                          },
+                          "pageCount": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
                           "id",
                           "bookId",
-                          "status"
+                          "status",
+                          "title",
+                          "authors",
+                          "groundingStatus"
                         ],
                         "additionalProperties": false
                       }

@@ -44,7 +44,7 @@ Protected routes expect `Authorization: Bearer <supabase-jwt>`. The token is
 verified with `supabase.auth.getUser()`; `profiles.is_admin` gates admin routes.
 
 **Dev auth** (only when `NODE_ENV=development`): send `Authorization: Bearer DEV`
-to authenticate as the fixed dev user `00000000-0000-0000-0000-0000000000de`,
+to authenticate as the fixed dev user `00000000-0000-4000-8000-0000000000de`,
 or `Bearer DEV:<uuid>` to impersonate a specific user id. This path never
 contacts Supabase and is hard-disabled outside development.
 

@@ -4,6 +4,7 @@ import { schema } from "@owlnighter/db";
 import {
   type AddLibraryBookRequest,
   type LibraryBook,
+  type LibraryBookView,
   type LibraryBooksResponse,
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
@@ -14,19 +15,39 @@ import { register } from "./helpers.js";
 export function registerLibraryRoutes(app: FastifyInstance, deps: Deps): void {
   register<never, LibraryBooksResponse>(app, deps, "listLibraryBooks", async ({ req }) => {
     const user = requireUser(req);
+    // Inner-join public.books so each card carries the catalog identity (title,
+    // authors, cover, grounding badge, length) — an inner join is correct here
+    // because a user_books row can only exist for a book that was grounded first.
     const rows = await deps.db
-      .select()
+      .select({
+        id: schema.userBooks.id,
+        bookId: schema.userBooks.bookId,
+        status: schema.userBooks.status,
+        currentPage: schema.userBooks.currentPage,
+        targetNightlyPages: schema.userBooks.targetNightlyPages,
+        title: schema.books.canonicalTitle,
+        authors: schema.books.canonicalAuthor,
+        coverUrl: schema.books.coverUrl,
+        groundingStatus: schema.books.groundingStatus,
+        pageCount: schema.books.pageCount,
+      })
       .from(schema.userBooks)
+      .innerJoin(schema.books, eq(schema.userBooks.bookId, schema.books.id))
       .where(eq(schema.userBooks.userId, user.id))
       .orderBy(desc(schema.userBooks.createdAt));
-    const books = rows.map((r): LibraryBook => {
-      const b: LibraryBook = {
+    const books = rows.map((r): LibraryBookView => {
+      const b: LibraryBookView = {
         id: r.id,
         bookId: r.bookId,
-        status: r.status as LibraryBook["status"],
+        status: r.status as LibraryBookView["status"],
+        title: r.title,
+        authors: r.authors ?? [],
+        groundingStatus: r.groundingStatus as LibraryBookView["groundingStatus"],
       };
       if (r.currentPage != null) b.currentPage = r.currentPage;
       if (r.targetNightlyPages != null) b.targetNightlyPages = r.targetNightlyPages;
+      if (r.coverUrl != null) b.coverUrl = r.coverUrl;
+      if (r.pageCount != null) b.pageCount = r.pageCount;
       return b;
     });
     return { books };

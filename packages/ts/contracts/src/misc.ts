@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Uuid, UserBookStatus } from "./common.js";
+import { GroundingStatus, Uuid, UserBookStatus } from "./common.js";
 
 // ---- POST /v1/library/books ----
 export const AddLibraryBookRequest = z.object({
@@ -23,7 +23,28 @@ export const LibraryBook = z.object({
 export type LibraryBook = z.infer<typeof LibraryBook>;
 
 // ---- GET /v1/library/books ----
-export const LibraryBooksResponse = z.object({ books: z.array(LibraryBook) });
+/**
+ * A library entry enriched with its book's catalog identity (joined from
+ * public.books) so the reader can render a real card — title, authors, cover,
+ * grounding badge, and length — without a second lookup. `LibraryBook` above
+ * stays the lean shape returned by POST add; this View is the list projection.
+ */
+export const LibraryBookView = z.object({
+  id: Uuid,
+  bookId: Uuid,
+  status: UserBookStatus,
+  currentPage: z.number().int().nonnegative().optional(),
+  targetNightlyPages: z.number().int().optional(),
+  // ---- joined from public.books ----
+  title: z.string(),
+  authors: z.array(z.string()),
+  coverUrl: z.string().optional(),
+  groundingStatus: GroundingStatus,
+  pageCount: z.number().int().positive().optional(),
+});
+export type LibraryBookView = z.infer<typeof LibraryBookView>;
+
+export const LibraryBooksResponse = z.object({ books: z.array(LibraryBookView) });
 export type LibraryBooksResponse = z.infer<typeof LibraryBooksResponse>;
 
 // ---- POST /v1/steps/:id/start ----
