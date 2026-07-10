@@ -7,6 +7,7 @@ import '../features/library/library_page.dart';
 import '../features/nightly_session/nightly_session_page.dart';
 import '../features/onboarding/onboarding_page.dart';
 import '../features/quiz/quiz_page.dart';
+import '../features/reading_path/plan_launcher_page.dart';
 import '../features/reading_path/reading_path_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/streaks/streaks_page.dart';
@@ -23,6 +24,8 @@ abstract final class Routes {
   static const settings = '/settings';
   static const adminDebug = '/admin';
 
+  /// Opens a book with get-or-create semantics (see [PlanLauncherPage]).
+  static String launch(String bookId) => '/book/$bookId/launch';
   static String plan(String planId) => '/plan/$planId';
   static String step(String planId, String stepId) =>
       '/plan/$planId/step/$stepId';
@@ -75,6 +78,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const SettingsPage(),
           ),
         ],
+      ),
+
+      // Book launcher: get-or-create a plan, then render its path map.
+      GoRoute(
+        path: '/book/:bookId/launch',
+        builder: (_, state) => PlanLauncherPage(
+          bookId: state.pathParameters['bookId']!,
+        ),
       ),
 
       // Reading path map for a plan (the game-like node map).

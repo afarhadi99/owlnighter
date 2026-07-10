@@ -59,12 +59,18 @@ class OwlnighterApi {
     String locale = 'en-US',
     List<CatalogCandidate> candidates = const [],
   }) async {
-    final json = await _post('/v1/books/ground', {
-      'title': title,
-      if (author != null) 'author': author,
-      'locale': locale,
-      'candidates': candidates.map((c) => c.toJson()).toList(),
-    });
+    final json = await _post(
+      '/v1/books/ground',
+      {
+        'title': title,
+        if (author != null) 'author': author,
+        'locale': locale,
+        'candidates': candidates.map((c) => c.toJson()).toList(),
+      },
+      // Gemini search-grounding is slow; override the default receiveTimeout
+      // for this one call so it doesn't abort mid-flight.
+      options: Options(receiveTimeout: _aiReceiveTimeout),
+    );
     return GroundedBook.fromJson(json);
   }
 
@@ -93,6 +99,17 @@ class OwlnighterApi {
     return UserBook.fromJson(json);
   }
 
+  // ---- GET /v1/plans?bookId= → listPlans ----
+  /// List the caller's plans for [bookId] (newest planVersion first). Cheap
+  /// summaries only; the full plan is loaded on tap via [getPlan]. Enables
+  /// get-or-create so opening a book never regenerates a plan needlessly.
+  Future<List<PlanSummary>> listPlans({required String bookId}) async {
+    final json = await _get('/v1/plans', query: {'bookId': bookId});
+    return (json['plans'] as List<dynamic>)
+        .map((e) => PlanSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ---- POST /v1/plans/generate → generatePlan ----
   Future<ReadingPlan> generatePlan({
     required String bookId,
@@ -103,17 +120,25 @@ class OwlnighterApi {
     int maxMinutes = 25,
     String timezone = 'UTC',
     AiProvider? provider,
+    PlanIfExists ifExists = PlanIfExists.reuse,
   }) async {
-    final json = await _post('/v1/plans/generate', {
-      'bookId': bookId,
-      'goal': goal,
-      'experience': experience,
-      'pacingMode': pacingMode.wire,
-      if (bedtimeLocal != null) 'bedtimeLocal': bedtimeLocal,
-      'maxMinutes': maxMinutes,
-      'timezone': timezone,
-      if (provider != null) 'provider': provider.wire,
-    });
+    final json = await _post(
+      '/v1/plans/generate',
+      {
+        'bookId': bookId,
+        'goal': goal,
+        'experience': experience,
+        'pacingMode': pacingMode.wire,
+        if (bedtimeLocal != null) 'bedtimeLocal': bedtimeLocal,
+        'maxMinutes': maxMinutes,
+        'timezone': timezone,
+        if (provider != null) 'provider': provider.wire,
+        'ifExists': ifExists.wire,
+      },
+      // Plan authoring can take ~1 minute on the model; override the default
+      // receiveTimeout so the request survives a slow generation.
+      options: Options(receiveTimeout: _aiReceiveTimeout),
+    );
     return ReadingPlan.fromJson(json);
   }
 
@@ -189,22 +214,33 @@ class OwlnighterApi {
     return TtsAsset.fromJson(json);
   }
 
+  // Generous per-call receiveTimeout for the AI-backed endpoints (plan
+  // generation, book grounding). Model calls can take ~1 minute, which exceeds
+  // the default 30s receiveTimeout — without this the app would abort mid-flight
+  // even though the server persisted the result. Applied per-call via [Options]
+  // so ordinary endpoints keep their tight defaults.
+  static const Duration _aiReceiveTimeout = Duration(seconds: 180);
+
   // ---- transport helpers ----
   Future<Map<String, dynamic>> _post(
     String path,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    Options? options,
+  }) async {
     try {
-      final res = await _dio.post<dynamic>(path, data: body);
+      final res = await _dio.post<dynamic>(path, data: body, options: options);
       return _asMap(res.data);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
   }
 
-  Future<Map<String, dynamic>> _get(String path) async {
+  Future<Map<String, dynamic>> _get(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
     try {
-      final res = await _dio.get<dynamic>(path);
+      final res = await _dio.get<dynamic>(path, queryParameters: query);
       return _asMap(res.data);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);

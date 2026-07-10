@@ -91,6 +91,51 @@ class PlanStepState {
       };
 }
 
+/// A lightweight plan row for list views. Mirrors `PlanSummary` in
+/// contracts/plan.ts — cheaper than [ReadingPlan] (no steps or step states).
+/// Returned by `GET /v1/plans?bookId=`; the client fetches the full plan via
+/// [PlanRepository.getPlan] on tap.
+@immutable
+class PlanSummary {
+  const PlanSummary({
+    required this.planId,
+    required this.bookId,
+    required this.planVersion,
+    required this.pacingMode,
+    required this.nightlyGoalPages,
+    required this.startsOn,
+    required this.createdAt,
+  });
+
+  final String planId;
+  final String bookId;
+  final int planVersion;
+  final PacingMode pacingMode;
+  final int nightlyGoalPages;
+  final DateTime startsOn;
+  final DateTime createdAt;
+
+  factory PlanSummary.fromJson(Map<String, dynamic> json) => PlanSummary(
+        planId: json['planId'] as String,
+        bookId: json['bookId'] as String,
+        planVersion: json['planVersion'] as int,
+        pacingMode: PacingMode.fromWire(json['pacingMode'] as String),
+        nightlyGoalPages: json['nightlyGoalPages'] as int,
+        startsOn: DateTime.parse(json['startsOn'] as String),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'planId': planId,
+        'bookId': bookId,
+        'planVersion': planVersion,
+        'pacingMode': pacingMode.wire,
+        'nightlyGoalPages': nightlyGoalPages,
+        'startsOn': startsOn.toIso8601String(),
+        'createdAt': createdAt.toIso8601String(),
+      };
+}
+
 /// A full reading plan with steps and their states. Mirrors `PlanResponse`.
 @immutable
 class ReadingPlan {

@@ -1,5 +1,6 @@
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/analytics/analytics.dart';
@@ -96,9 +97,16 @@ class _QuizBody extends ConsumerWidget {
         .read(analyticsProvider)
         .quizSubmitted(result.quizId, passed: result.passed);
     if (!context.mounted) return;
-    if (result.passed && result.streak.xpGained > 0) {
-      // Fire the XP burst over the current screen for immediate feedback.
-      XpBurst.show(context, xp: result.streak.xpGained);
+    if (result.passed) {
+      // Reward beat: a haptic thump + the floating XP burst. Both are motion,
+      // so honor the OS reduce-motion preference.
+      if (!reduceMotionOf(context)) {
+        await HapticFeedback.mediumImpact();
+        if (!context.mounted) return;
+      }
+      if (result.streak.xpGained > 0) {
+        XpBurst.show(context, xp: result.streak.xpGained);
+      }
     }
     await showStreakCelebration(context, result: result);
   }

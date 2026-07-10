@@ -24,6 +24,21 @@ enum PacingMode {
   static PacingMode fromWire(String v) => values.firstWhere((e) => e.wire == v);
 }
 
+/// What to do when the caller already has a plan for a book. Mirrors the
+/// `ifExists` field on `PlanGenerateRequest` in contracts/plan.ts.
+///  - [reuse]      : return the latest existing plan WITHOUT calling the AI.
+///  - [regenerate] : always author a new plan version.
+enum PlanIfExists {
+  reuse('reuse'),
+  regenerate('regenerate');
+
+  const PlanIfExists(this.wire);
+  final String wire;
+
+  static PlanIfExists fromWire(String v) =>
+      values.firstWhere((e) => e.wire == v);
+}
+
 /// How trustworthy a step's quiz is. Never claim page-level precision the
 /// system cannot back with text.
 enum QuizMode {

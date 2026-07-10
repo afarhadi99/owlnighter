@@ -52,7 +52,13 @@ abstract interface class PlanRepository {
     int maxMinutes = 25,
     String timezone = 'UTC',
     AiProvider? provider,
+    PlanIfExists ifExists = PlanIfExists.reuse,
   });
+
+  /// List the caller's plans for a book (newest planVersion first). Used to
+  /// get-or-create: opening a book looks here first and only generates when the
+  /// list is empty, so a plan is never regenerated on every open.
+  Future<List<PlanSummary>> listPlans({required String bookId});
 
   Future<ReadingPlan> getPlan(String planId);
 

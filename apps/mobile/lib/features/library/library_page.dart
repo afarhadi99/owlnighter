@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
-import '../../services/api/repository_providers.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/async_value_view.dart';
 import 'add_book_sheet.dart';
@@ -70,42 +69,12 @@ class _EmptyLibrary extends StatelessWidget {
       );
 }
 
-class _BookTile extends ConsumerStatefulWidget {
+class _BookTile extends StatelessWidget {
   const _BookTile({required this.book});
   final UserBook book;
 
   @override
-  ConsumerState<_BookTile> createState() => _BookTileState();
-}
-
-class _BookTileState extends ConsumerState<_BookTile> {
-  bool _opening = false;
-
-  /// Open the book's reading path. There is no plan-lookup-by-book endpoint, so
-  /// we call plans/generate, which creates-or-refreshes the plan and returns
-  /// its id — then navigate to the path map.
-  Future<void> _open() async {
-    setState(() => _opening = true);
-    try {
-      final plan = await ref
-          .read(planRepositoryProvider)
-          .generatePlan(bookId: widget.book.bookId);
-      if (!mounted) return;
-      context.push(Routes.plan(plan.planId));
-    } on Exception catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open book: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _opening = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final book = widget.book;
     final author = book.authorLine;
     return Card(
       child: ListTile(
@@ -120,14 +89,10 @@ class _BookTileState extends ConsumerState<_BookTile> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: _opening
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.chevron_right_rounded),
-        onTap: _opening ? null : _open,
+        trailing: const Icon(Icons.chevron_right_rounded),
+        // Hand off to the launcher, which does get-or-create and owns the
+        // full-screen loading/error states (no silent bounce back here).
+        onTap: () => context.push(Routes.launch(book.bookId)),
       ),
     );
   }

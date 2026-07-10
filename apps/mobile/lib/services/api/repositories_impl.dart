@@ -94,6 +94,7 @@ class PlanRepositoryImpl implements PlanRepository {
     int maxMinutes = 25,
     String timezone = 'UTC',
     AiProvider? provider,
+    PlanIfExists ifExists = PlanIfExists.reuse,
   }) async {
     final plan = await api.generatePlan(
       bookId: bookId,
@@ -104,11 +105,16 @@ class PlanRepositoryImpl implements PlanRepository {
       maxMinutes: maxMinutes,
       timezone: timezone,
       provider: provider,
+      ifExists: ifExists,
     );
     await cache.upsertPlanSteps(plan);
     unawaited(_prefetchNightly(plan));
     return plan;
   }
+
+  @override
+  Future<List<PlanSummary>> listPlans({required String bookId}) =>
+      api.listPlans(bookId: bookId);
 
   @override
   Future<ReadingPlan> getPlan(String planId) async {
