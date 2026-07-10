@@ -175,6 +175,12 @@ class GroundedBook {
 }
 
 /// A book in the user's library. Mirrors `LibraryBook`.
+///
+/// The list endpoint enriches each item with catalog identity ([title],
+/// [authors], [coverUrl], [groundingStatus], [pageCount]) so the library can
+/// render a real book instead of a raw id. These are optional on the wire: an
+/// older API (or a not-yet-enriched row) simply omits them and the UI falls
+/// back to [displayTitle].
 @immutable
 class UserBook {
   const UserBook({
@@ -183,6 +189,11 @@ class UserBook {
     required this.status,
     this.currentPage,
     this.targetNightlyPages,
+    this.title,
+    this.authors = const [],
+    this.coverUrl,
+    this.groundingStatus,
+    this.pageCount,
   });
 
   final String id;
@@ -190,6 +201,11 @@ class UserBook {
   final UserBookStatus status;
   final int? currentPage;
   final int? targetNightlyPages;
+  final String? title;
+  final List<String> authors;
+  final String? coverUrl;
+  final GroundingStatus? groundingStatus;
+  final int? pageCount;
 
   factory UserBook.fromJson(Map<String, dynamic> json) => UserBook(
         id: json['id'] as String,
@@ -197,6 +213,15 @@ class UserBook {
         status: UserBookStatus.fromWire(json['status'] as String),
         currentPage: json['currentPage'] as int?,
         targetNightlyPages: json['targetNightlyPages'] as int?,
+        title: json['title'] as String?,
+        authors: (json['authors'] as List<dynamic>? ?? const [])
+            .map((e) => e as String)
+            .toList(),
+        coverUrl: json['coverUrl'] as String?,
+        groundingStatus: json['groundingStatus'] == null
+            ? null
+            : GroundingStatus.fromWire(json['groundingStatus'] as String),
+        pageCount: json['pageCount'] as int?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -206,5 +231,18 @@ class UserBook {
         if (currentPage != null) 'currentPage': currentPage,
         if (targetNightlyPages != null)
           'targetNightlyPages': targetNightlyPages,
+        if (title != null) 'title': title,
+        if (authors.isNotEmpty) 'authors': authors,
+        if (coverUrl != null) 'coverUrl': coverUrl,
+        if (groundingStatus != null) 'groundingStatus': groundingStatus!.wire,
+        if (pageCount != null) 'pageCount': pageCount,
       };
+
+  /// The book's display title, falling back to a short id when the list item
+  /// hasn't been enriched with catalog identity yet.
+  String get displayTitle =>
+      title ?? 'Book ${bookId.substring(0, bookId.length.clamp(0, 8))}';
+
+  /// Comma-joined authors, or null when unknown.
+  String? get authorLine => authors.isEmpty ? null : authors.join(', ');
 }

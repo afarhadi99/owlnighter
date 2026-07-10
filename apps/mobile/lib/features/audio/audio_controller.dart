@@ -17,8 +17,14 @@ class AudioController {
   Stream<Duration> get position => _player.positionStream;
   Duration? get duration => _player.duration;
 
-  /// Load the recap for [stepId]. [remoteUrl] is used only if no local file is
-  /// cached. Returns true if something was loaded.
+  /// The bundled fallback recap. Ensures the nightly player always has a source
+  /// (a short silent clip) even before real TTS is prefetched, so play/pause is
+  /// exercisable end-to-end on device.
+  static const _fallbackAsset = 'assets/audio/placeholder_recap.wav';
+
+  /// Load the recap for [stepId]. Order of preference: a prefetched local file,
+  /// then a provided [remoteUrl] (e.g. a TTS storage URL), then the bundled
+  /// placeholder asset. Always returns true — there is always a source.
   Future<bool> loadStepRecap(String stepId, {String? remoteUrl}) async {
     final localPath = await _cache.audioPathForStep(stepId);
     if (localPath != null) {
@@ -29,7 +35,8 @@ class AudioController {
       await _player.setUrl(remoteUrl);
       return true;
     }
-    return false;
+    await _player.setAsset(_fallbackAsset);
+    return true;
   }
 
   Future<void> play() => _player.play();

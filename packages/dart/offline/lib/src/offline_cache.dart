@@ -24,8 +24,13 @@ class OfflineCache {
             status: book.status.wire,
             currentPage: Value(book.currentPage),
             targetNightlyPages: Value(book.targetNightlyPages),
+            // Persist the full enriched UserBook (title/authors/cover/etc.) so
+            // the library renders real books when read back offline, not just
+            // ids. Falls back to catalog [identity] if a caller passes one.
             bookJson: Value(
-              identity == null ? null : jsonEncode(identity.toJson()),
+              jsonEncode(
+                identity != null ? identity.toJson() : book.toJson(),
+              ),
             ),
             updatedAt: DateTime.now(),
           ),
@@ -34,17 +39,29 @@ class OfflineCache {
 
   Future<List<UserBook>> library() async {
     final rows = await db.select(db.localUserBooks).get();
-    return rows
-        .map(
-          (r) => UserBook(
-            id: r.id,
-            bookId: r.bookId,
-            status: UserBookStatus.fromWire(r.status),
-            currentPage: r.currentPage,
-            targetNightlyPages: r.targetNightlyPages,
-          ),
-        )
-        .toList();
+    return rows.map(_userBookFromRow).toList();
+  }
+
+  /// Reconstruct a [UserBook], preferring the persisted enriched JSON so the
+  /// title/authors survive offline; falls back to the flat columns for rows
+  /// written before enrichment (or by an [identity]-only caller).
+  UserBook _userBookFromRow(LocalUserBook r) {
+    final raw = r.bookJson;
+    if (raw != null) {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      // Only the full UserBook shape carries the row id; a bare Book identity
+      // does not, so fall through to columns in that case.
+      if (decoded.containsKey('id') && decoded.containsKey('status')) {
+        return UserBook.fromJson(decoded);
+      }
+    }
+    return UserBook(
+      id: r.id,
+      bookId: r.bookId,
+      status: UserBookStatus.fromWire(r.status),
+      currentPage: r.currentPage,
+      targetNightlyPages: r.targetNightlyPages,
+    );
   }
 
   // ---- plan steps ----

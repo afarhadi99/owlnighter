@@ -18,6 +18,8 @@ dependencies:
     path: ../app_core
 
 dev_dependencies:
+  flutter_test:
+    sdk: flutter
   flutter_lints: ^4.0.0
   # Codegen: `dart run build_runner build` regenerates database.g.dart.
   drift_dev: ^2.20.0

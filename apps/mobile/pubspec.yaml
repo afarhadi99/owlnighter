@@ -56,6 +56,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # Bundled silent recap used as the offline fallback source so the nightly
+    # recap player always has something to play (see AudioController).
+    - assets/audio/
   # assets:
   #   - assets/rive/
   #   - assets/lottie/

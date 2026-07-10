@@ -106,11 +106,20 @@ class _BookTileState extends ConsumerState<_BookTile> {
   @override
   Widget build(BuildContext context) {
     final book = widget.book;
+    final author = book.authorLine;
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.menu_book_rounded),
-        title: Text('Book ${book.bookId.substring(0, 8)}'),
-        subtitle: Text('Status: ${book.status.wire}'),
+        leading: _Cover(coverUrl: book.coverUrl),
+        title: Text(
+          book.displayTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          author ?? 'Status: ${book.status.wire}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: _opening
             ? const SizedBox(
                 height: 20,
@@ -119,6 +128,30 @@ class _BookTileState extends ConsumerState<_BookTile> {
               )
             : const Icon(Icons.chevron_right_rounded),
         onTap: _opening ? null : _open,
+      ),
+    );
+  }
+}
+
+/// A small book cover: the real thumbnail when the list item carries one, else
+/// a book glyph. Network failures degrade gracefully to the glyph.
+class _Cover extends StatelessWidget {
+  const _Cover({required this.coverUrl});
+  final String? coverUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    const fallback = Icon(Icons.menu_book_rounded);
+    final url = coverUrl;
+    if (url == null || url.isEmpty) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Image.network(
+        url,
+        width: 40,
+        height: 56,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
       ),
     );
   }

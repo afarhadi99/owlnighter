@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../services/analytics/analytics.dart';
+import '../../services/api/repository_providers.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/quiz_mode_badge.dart';
@@ -15,7 +18,7 @@ import 'nightly_session_controller.dart';
 /// badge for how trustworthy the quiz will be, an optional recap player, and
 /// the entry point into the quiz. This is the top of the core loop:
 /// session -> quiz -> streak celebration.
-class NightlySessionPage extends ConsumerWidget {
+class NightlySessionPage extends ConsumerStatefulWidget {
   const NightlySessionPage({
     super.key,
     required this.planId,
@@ -26,16 +29,35 @@ class NightlySessionPage extends ConsumerWidget {
   final String stepId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final stepAsync = ref.watch(nightlyStepProvider(stepId));
+  ConsumerState<NightlySessionPage> createState() => _NightlySessionPageState();
+}
+
+class _NightlySessionPageState extends ConsumerState<NightlySessionPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Opening the session starts (or reuses) the server-side reading session so
+    // the streak timer runs. Best-effort: startStep swallows offline failures.
+    unawaited(
+      ref.read(planRepositoryProvider).startStep(widget.stepId),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stepAsync = ref.watch(nightlyStepProvider(widget.stepId));
     return Scaffold(
       appBar: AppBar(title: const Text("Tonight's reading")),
       body: AsyncValueView<PlanStep?>(
         value: stepAsync,
-        onRetry: () => ref.invalidate(nightlyStepProvider(stepId)),
+        onRetry: () => ref.invalidate(nightlyStepProvider(widget.stepId)),
         data: (step) => step == null
             ? const _MissingStep()
-            : _SessionBody(planId: planId, stepId: stepId, step: step),
+            : _SessionBody(
+                planId: widget.planId,
+                stepId: widget.stepId,
+                step: step,
+              ),
       ),
     );
   }

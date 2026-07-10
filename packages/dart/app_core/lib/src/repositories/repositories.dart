@@ -55,6 +55,11 @@ abstract interface class PlanRepository {
   });
 
   Future<ReadingPlan> getPlan(String planId);
+
+  /// Open (or reuse) the reading session for a step. Called when the nightly
+  /// session screen is shown. Best-effort: implementations swallow offline
+  /// failures so the reader can still work through cached content.
+  Future<void> startStep(String stepId);
 }
 
 /// Quiz generation + scoring for a plan step.

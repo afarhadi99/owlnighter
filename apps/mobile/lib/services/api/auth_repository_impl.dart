@@ -12,7 +12,7 @@ const _kSessionKey = 'owlnighter.session.v1';
 /// `Authorization: Bearer DEV` to this user (is_admin=true) under
 /// `NODE_ENV=development`, so a session whose access token is literally `DEV`
 /// authenticates as the dev user with no real credential exchange.
-const _kDevUserId = '00000000-0000-0000-0000-0000000000de';
+const _kDevUserId = '00000000-0000-4000-8000-0000000000de';
 const _kDevAccessToken = 'DEV';
 
 /// Auth repository backed by flutter_secure_storage. Only session tokens are

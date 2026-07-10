@@ -123,6 +123,15 @@ class OwlnighterApi {
     return ReadingPlan.fromJson(json);
   }
 
+  // ---- POST /v1/steps/:id/start → startStep ----
+  /// Opens (or reuses) a reading session for a step. Called when the nightly
+  /// screen is opened so the server can time the session. Body is empty; the
+  /// step id is in the path.
+  Future<StepSession> startStep(String stepId) async {
+    final json = await _post('/v1/steps/$stepId/start', const {});
+    return StepSession.fromJson(json);
+  }
+
   // ---- POST /v1/steps/:id/quiz → generateStepQuiz ----
   Future<QuizInstance> generateStepQuiz({
     required String stepId,
@@ -233,5 +242,24 @@ class TtsAsset {
         cached: json['cached'] as bool,
         storagePath: json['storagePath'] as String,
         durationMs: json['durationMs'] as int?,
+      );
+}
+
+/// A reading session opened for a step. Mirrors `StepStartResponse`.
+class StepSession {
+  const StepSession({
+    required this.sessionId,
+    required this.stepId,
+    required this.startedAt,
+  });
+
+  final String sessionId;
+  final String stepId;
+  final DateTime startedAt;
+
+  factory StepSession.fromJson(Map<String, dynamic> json) => StepSession(
+        sessionId: json['sessionId'] as String,
+        stepId: json['stepId'] as String,
+        startedAt: DateTime.parse(json['startedAt'] as String),
       );
 }
