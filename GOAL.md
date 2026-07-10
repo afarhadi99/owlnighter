@@ -84,6 +84,26 @@ Fanned out 3 more agents (opus/high mobile + backend, sonnet/med admin).
 - Known follow-up: the library-list endpoint returns book ids, not titles — the
   card shows "Book 3ce25e75". Enrich `LibraryBooksResponse` with title/author/cover.
 
+### Round 4 — Phase 4 + test-all (2026-07-10)
+
+Fanned out 3 agents (opus/high backend + mobile, sonnet/med admin), then a full
+controller regression + live e2e + on-device drive.
+- **Library enriched** (title/author/cover via join) — VERIFIED on emulator:
+  the card now reads "The Left Hand of Darkness / Ursula K. Le Guin".
+- **Tests added:** backend **63** (inject tests for every endpoint + units) and
+  **70 dart** (app_core round-trips, offline cache/SyncQueue, widgets). Full
+  regression green: `pnpm -r build`+typecheck, 63 api tests, 5-pkg analyze, 70
+  flutter tests, APK builds.
+- **Backend fix (found by testing):** `DEV_USER_ID` wasn't a valid UUID → `z.uuid()`
+  rejected it in bodies (push/test 400). Changed to a valid v4 across the codebase;
+  migrated the seeded dev data; push/test now validates + degrades cleanly.
+- **Admin:** notifications "send test push"; honest states elsewhere.
+- **⚠️ On-device finding:** plan generation via Gemini took **~58s** (v3 persisted
+  server-side), which **exceeds the mobile Dio timeout** — the book-tap spins then
+  silently returns to Library without navigating, and the app **regenerates a plan
+  on every open** (no get-or-create). Top phase-5 item: make plan generation
+  async/faster + get-or-create + a real loading/error state on the path screen.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
@@ -180,3 +200,7 @@ _Updated as we go. Full detail in `git log`._
 - `feat(api,jobs): admin plan/quiz lists + FCM push pipeline`
 - `feat(admin): wire Plans QA + Quiz QA to live list endpoints`
 - `feat(mobile): dev-auth + emulator host — core loop runs against live API`
+- `docs(goal): record round-3 — app runs on emulator against live API`
+- `feat(api): enrich library list + comprehensive backend tests; fix dev user UUID`
+- `feat(mobile): library titles, navigable loop, offline prefetch, audio + tests`
+- `feat(admin): notifications send-test-push + honest states on remaining pages`
