@@ -5,8 +5,15 @@ import {
   type AdminGroundingResponse,
   type AdminMetricsResponse,
   type AdminOverrideRequest,
+  type AdminPlanSummary,
+  type AdminPlansResponse,
+  type AdminPushTestRequest,
+  type AdminPushTestResponse,
+  type AdminPushTestTokenResult,
   type AdminQuizInvalidateRequest,
   type AdminQuizInvalidateResponse,
+  type AdminQuizSummary,
+  type AdminQuizzesResponse,
   type AdminTtsResponse,
   type GroundingFact,
   type GroundingRun,
@@ -14,10 +21,25 @@ import {
   type GroundingStatus,
   type TtsAssetSummary,
 } from "@owlnighter/contracts";
+import { mintFcmAccessToken, pushTemplateFor, sendPush, type PushDeps } from "@owlnighter/jobs";
 import type { Deps } from "../deps.js";
 import { badRequest, notFound } from "../plugins/errors.js";
 import { reviewBucketFor } from "../services/grounding.js";
 import { register } from "./helpers.js";
+
+/** Clamp a `?limit=` query param to a sane window (default 50, max 200). */
+function parseLimit(query: unknown, def = 50, max = 200): number {
+  const raw = (query as Record<string, string> | undefined)?.["limit"];
+  const n = raw !== undefined ? Number(raw) : def;
+  if (!Number.isFinite(n) || n <= 0) return def;
+  return Math.min(Math.floor(n), max);
+}
+
+/** Mask a device token so the admin response never leaks a full credential. */
+function maskToken(token: string): string {
+  if (token.length <= 10) return "***";
+  return `${token.slice(0, 6)}…${token.slice(-4)}`;
+}
 
 /** Columns on `books` an admin override is allowed to write. Guards against
  * arbitrary key injection from the free-form fieldOverrides record. */
@@ -218,4 +240,147 @@ export function registerAdminRoutes(app: FastifyInstance, deps: Deps): void {
       return { quizId, invalidated: true };
     },
   );
+
+  register<never, AdminPlansResponse>(app, deps, "adminListPlans", async ({ req }) => {
+    const limit = parseLimit(req.query);
+    const planRows = await deps.db
+      .select({
+        id: schema.readingPlans.id,
+        userId: schema.readingPlans.userId,
+        bookId: schema.readingPlans.bookId,
+        provider: schema.readingPlans.provider,
+        providerModel: schema.readingPlans.providerModel,
+        planVersion: schema.readingPlans.planVersion,
+        pacingMode: schema.readingPlans.pacingMode,
+        nightlyGoalPages: schema.readingPlans.nightlyGoalPages,
+        startsOn: schema.readingPlans.startsOn,
+        createdAt: schema.readingPlans.createdAt,
+      })
+      .from(schema.readingPlans)
+      .orderBy(desc(schema.readingPlans.createdAt))
+      .limit(limit);
+
+    // One grouped count for the whole page rather than N per-plan queries.
+    const planIds = planRows.map((p) => p.id);
+    const countRows = planIds.length
+      ? await deps.db
+          .select({ planId: schema.readingPlanSteps.planId, value: count() })
+          .from(schema.readingPlanSteps)
+          .where(inArray(schema.readingPlanSteps.planId, planIds))
+          .groupBy(schema.readingPlanSteps.planId)
+      : [];
+    const stepCounts = new Map<string, number>();
+    for (const r of countRows) stepCounts.set(r.planId, Number(r.value));
+
+    const plans: AdminPlanSummary[] = planRows.map((p) => ({
+      planId: p.id,
+      userId: p.userId,
+      bookId: p.bookId,
+      provider: p.provider,
+      providerModel: p.providerModel,
+      planVersion: p.planVersion,
+      pacingMode: p.pacingMode as AdminPlanSummary["pacingMode"],
+      nightlyGoalPages: p.nightlyGoalPages,
+      startsOn: p.startsOn, // drizzle `date` column → 'YYYY-MM-DD' string
+      createdAt: p.createdAt.toISOString(),
+      stepCount: stepCounts.get(p.id) ?? 0,
+    }));
+    return { plans };
+  });
+
+  register<never, AdminQuizzesResponse>(app, deps, "adminListQuizzes", async ({ req }) => {
+    const query = req.query as Record<string, string> | undefined;
+    const limit = parseLimit(req.query);
+    const stepId = query?.["stepId"];
+
+    const quizRows = await deps.db
+      .select({
+        id: schema.quizInstances.id,
+        stepId: schema.quizInstances.stepId,
+        userId: schema.quizInstances.userId,
+        quizMode: schema.quizInstances.quizMode,
+        provider: schema.quizInstances.provider,
+        providerModel: schema.quizInstances.providerModel,
+        confidence: schema.quizInstances.confidence,
+        invalidatedAt: schema.quizInstances.invalidatedAt,
+        createdAt: schema.quizInstances.createdAt,
+      })
+      .from(schema.quizInstances)
+      // `where(undefined)` is a no-op filter, so the optional stepId narrows cleanly.
+      .where(stepId ? eq(schema.quizInstances.stepId, stepId) : undefined)
+      .orderBy(desc(schema.quizInstances.createdAt))
+      .limit(limit);
+
+    const quizIds = quizRows.map((q) => q.id);
+    const countRows = quizIds.length
+      ? await deps.db
+          .select({ quizId: schema.quizQuestions.quizId, value: count() })
+          .from(schema.quizQuestions)
+          .where(inArray(schema.quizQuestions.quizId, quizIds))
+          .groupBy(schema.quizQuestions.quizId)
+      : [];
+    const questionCounts = new Map<string, number>();
+    for (const r of countRows) questionCounts.set(r.quizId, Number(r.value));
+
+    const quizzes: AdminQuizSummary[] = quizRows.map((q) => {
+      const s: AdminQuizSummary = {
+        quizId: q.id,
+        stepId: q.stepId,
+        userId: q.userId,
+        quizMode: q.quizMode as AdminQuizSummary["quizMode"],
+        provider: q.provider,
+        providerModel: q.providerModel,
+        confidence: Number(q.confidence),
+        questionCount: questionCounts.get(q.id) ?? 0,
+        createdAt: q.createdAt.toISOString(),
+      };
+      if (q.invalidatedAt) s.invalidatedAt = q.invalidatedAt.toISOString();
+      return s;
+    });
+    return { quizzes };
+  });
+
+  register<AdminPushTestRequest, AdminPushTestResponse>(app, deps, "adminTestPush", async ({ body }) => {
+    const { env } = deps.config;
+    const configured = env.FCM_PROJECT_ID.length > 0 && env.FCM_SERVICE_ACCOUNT_JSON.length > 0;
+    const template = pushTemplateFor(body.type);
+
+    const tokenRows = await deps.db
+      .select({ token: schema.pushTokens.token, platform: schema.pushTokens.platform })
+      .from(schema.pushTokens)
+      .where(eq(schema.pushTokens.userId, body.userId));
+
+    const pushDeps: PushDeps = {
+      projectId: env.FCM_PROJECT_ID,
+      serviceAccountJson: env.FCM_SERVICE_ACCOUNT_JSON,
+      logger: deps.config.logger,
+    };
+
+    // Mint the OAuth token once and reuse it across every device token.
+    const accessToken = configured ? ((await mintFcmAccessToken(pushDeps)) ?? undefined) : undefined;
+
+    const results: AdminPushTestTokenResult[] = [];
+    for (const t of tokenRows) {
+      const res = await sendPush(pushDeps, {
+        token: t.token,
+        notification: { title: template.title, body: template.body },
+        data: template.data,
+        ...(accessToken ? { accessToken } : {}),
+      });
+      results.push({
+        token: maskToken(t.token),
+        platform: t.platform,
+        status: res.status,
+        ...(res.status === "sent" ? {} : { detail: res.reason }),
+      });
+    }
+
+    return {
+      userId: body.userId,
+      type: body.type,
+      configured,
+      notification: { title: template.title, body: template.body },
+      results,
+    };
+  });
 }

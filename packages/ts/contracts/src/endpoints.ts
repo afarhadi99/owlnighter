@@ -10,8 +10,12 @@ import { QuizGenerateRequest, QuizInstance, QuizSubmitRequest, QuizSubmitRespons
 import { AdminGroundingResponse, AdminOverrideRequest } from "./grounding.js";
 import {
   AdminMetricsResponse,
+  AdminPlansResponse,
+  AdminPushTestRequest,
+  AdminPushTestResponse,
   AdminQuizInvalidateRequest,
   AdminQuizInvalidateResponse,
+  AdminQuizzesResponse,
   AdminTtsResponse,
 } from "./admin.js";
 import {
@@ -194,5 +198,33 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     auth: "admin",
     request: AdminQuizInvalidateRequest,
     response: AdminQuizInvalidateResponse,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/plans",
+    operationId: "adminListPlans",
+    summary: "List reading plans (newest first) with derived step counts. `?limit=`.",
+    tag: "admin",
+    auth: "admin",
+    response: AdminPlansResponse,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/quizzes",
+    operationId: "adminListQuizzes",
+    summary: "List quiz instances with derived question counts. `?stepId=&limit=`.",
+    tag: "admin",
+    auth: "admin",
+    response: AdminQuizzesResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/push/test",
+    operationId: "adminTestPush",
+    summary: "Send a test push of a given type to a user's registered device tokens.",
+    tag: "admin",
+    auth: "admin",
+    request: AdminPushTestRequest,
+    response: AdminPushTestResponse,
   },
 ] as const;
