@@ -5,7 +5,7 @@ import {
   BookSearchRequest,
   BookSearchResponse,
 } from "./book.js";
-import { PlanGenerateRequest, PlanResponse } from "./plan.js";
+import { ListPlansResponse, PlanGenerateRequest, PlanResponse } from "./plan.js";
 import { QuizGenerateRequest, QuizInstance, QuizSubmitRequest, QuizSubmitResponse } from "./quiz.js";
 import { AdminGroundingResponse, AdminOverrideRequest } from "./grounding.js";
 import {
@@ -85,6 +85,15 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     auth: "user",
     request: AddLibraryBookRequest,
     response: LibraryBook,
+  },
+  {
+    method: "get",
+    path: "/v1/plans",
+    operationId: "listPlans",
+    summary: "List the caller's plans (newest planVersion first). Filter with `?bookId=`.",
+    tag: "plans",
+    auth: "user",
+    response: ListPlansResponse,
   },
   {
     method: "post",

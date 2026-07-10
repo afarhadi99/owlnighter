@@ -24,7 +24,8 @@ test("GET /openapi.json serves the generated contract document", async () => {
     assert.equal(doc.openapi, "3.1.0");
     // The library list + all other endpoints must be present.
     assert.ok(doc.paths["/v1/library/books"], "library path present");
-    assert.equal(Object.keys(doc.paths).length, 18);
+    assert.ok(doc.paths["/v1/plans"], "list-plans path present");
+    assert.equal(Object.keys(doc.paths).length, 19);
   } finally {
     await app.close();
   }

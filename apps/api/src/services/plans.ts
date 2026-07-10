@@ -1,12 +1,15 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
 import {
   GroundedBookPlan,
   type BookIdentity,
+  type ListPlansResponse,
+  type PacingMode,
   type PlanGenerateRequest,
   type PlanResponse,
   type PlanStep,
   type PlanStepState,
+  type PlanSummary,
   type QuizMode,
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
@@ -14,16 +17,18 @@ import { notFound, unavailable } from "../plugins/errors.js";
 import type { AuthUser } from "../types.js";
 
 /**
- * Which provider generates the plan. Plans are contract-critical and
- * citation-bearing, so the default is Gemini (native grounding + strict schema).
- * A caller may force a provider; we honour it only if its key is configured.
+ * Which provider generates the plan. The blueprint's two-pass flow front-loads
+ * the slow, citation-bearing grounding into the book (already persisted), so the
+ * plan pass just needs to be FAST: we prefer Groq when its key is configured and
+ * fall back to Gemini (the AI router also validates + falls back on failure). An
+ * explicit `provider` override is honoured whenever that provider's key is set.
  */
 function chooseProvider(deps: Deps, requested?: "gemini" | "groq"): "gemini" | "groq" {
   const { env } = deps.config;
   const has = (p: "gemini" | "groq") => (p === "gemini" ? env.GEMINI_API_KEY : env.GROQ_API_KEY).length > 0;
   if (requested && has(requested)) return requested;
-  if (has("gemini")) return "gemini";
   if (has("groq")) return "groq";
+  if (has("gemini")) return "gemini";
   return "gemini"; // will fail the key check below with a clear error
 }
 
@@ -108,6 +113,21 @@ export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerate
   const book = bookRows[0];
   if (!book) throw notFound("Book not found. Ground it first via POST /v1/books/ground.");
 
+  // Cheap path: if the caller already has a plan for this book and asked to
+  // reuse (the default), return the latest existing plan without touching the AI.
+  // This is what fixes the on-device "regenerate on every open" bug.
+  if (req.ifExists === "reuse") {
+    const existing = await deps.db
+      .select({ id: schema.readingPlans.id, userId: schema.readingPlans.userId, planVersion: schema.readingPlans.planVersion })
+      .from(schema.readingPlans)
+      .where(and(eq(schema.readingPlans.userId, user.id), eq(schema.readingPlans.bookId, req.bookId)))
+      .orderBy(desc(schema.readingPlans.planVersion))
+      .limit(1);
+    // Guard ownership in JS too (getPlan re-checks), so a mis-scoped row is never reused.
+    const latest = existing.find((p) => p.userId === user.id);
+    if (latest) return getPlan(deps, user, latest.id);
+  }
+
   const provider = chooseProvider(deps, req.provider);
   const key = provider === "gemini" ? deps.config.env.GEMINI_API_KEY : deps.config.env.GROQ_API_KEY;
   if (key.length === 0) throw unavailable(`Plan generation unavailable: ${provider.toUpperCase()}_API_KEY is not configured.`);
@@ -120,7 +140,9 @@ export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerate
     system: SYSTEM_PROMPT,
     user: userPrompt(identity, book.groundingStatus, req),
     provider,
-    requireGrounding: provider === "gemini",
+    // Grounding already happened at book-ground time and its facts are baked into
+    // the prompt, so the plan pass does not need live search grounding.
+    requireGrounding: false,
     requireStrictSchema: provider === "gemini",
   });
   const plan = result.data;
@@ -191,6 +213,41 @@ export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerate
     steps,
     stepStates,
   };
+}
+
+/**
+ * List the caller's plans as lightweight summaries (newest planVersion first),
+ * optionally narrowed to a single book. The client fetches the full plan via
+ * GET /v1/plans/:id when the user taps one.
+ */
+export async function listPlans(deps: Deps, user: AuthUser, bookId?: string): Promise<ListPlansResponse> {
+  const where = bookId
+    ? and(eq(schema.readingPlans.userId, user.id), eq(schema.readingPlans.bookId, bookId))
+    : eq(schema.readingPlans.userId, user.id);
+  const rows = await deps.db
+    .select({
+      id: schema.readingPlans.id,
+      bookId: schema.readingPlans.bookId,
+      planVersion: schema.readingPlans.planVersion,
+      pacingMode: schema.readingPlans.pacingMode,
+      nightlyGoalPages: schema.readingPlans.nightlyGoalPages,
+      startsOn: schema.readingPlans.startsOn,
+      createdAt: schema.readingPlans.createdAt,
+    })
+    .from(schema.readingPlans)
+    .where(where)
+    .orderBy(desc(schema.readingPlans.planVersion));
+
+  const plans: PlanSummary[] = rows.map((r) => ({
+    planId: r.id,
+    bookId: r.bookId,
+    planVersion: r.planVersion,
+    pacingMode: r.pacingMode as PacingMode,
+    nightlyGoalPages: r.nightlyGoalPages,
+    startsOn: r.startsOn, // drizzle `date` column → 'YYYY-MM-DD' string
+    createdAt: r.createdAt.toISOString(),
+  }));
+  return { plans };
 }
 
 /** Fetch a persisted plan + its step states for the reader UI. */

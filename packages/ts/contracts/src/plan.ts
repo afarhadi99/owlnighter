@@ -51,6 +51,13 @@ export const PlanGenerateRequest = z.object({
   timezone: z.string().default("UTC"),
   /** Force a provider; otherwise routing rules decide. */
   provider: z.enum(["gemini", "groq"]).optional(),
+  /**
+   * What to do when the caller already has a plan for this book:
+   *  - "reuse"      : return the latest existing plan WITHOUT calling the AI
+   *  - "regenerate" : always author a new plan version
+   * Defaults to "reuse" so re-opening a book is cheap and instant.
+   */
+  ifExists: z.enum(["reuse", "regenerate"]).default("reuse"),
 });
 export type PlanGenerateRequest = z.infer<typeof PlanGenerateRequest>;
 
@@ -63,6 +70,27 @@ export const PlanStepState = z.object({
   ttsAssetId: Uuid.optional(),
 });
 export type PlanStepState = z.infer<typeof PlanStepState>;
+
+/**
+ * A lightweight plan row for list views. Cheaper than PlanResponse (no steps or
+ * step states); the client fetches the full plan via GET /v1/plans/:id on tap.
+ */
+export const PlanSummary = z.object({
+  planId: Uuid,
+  bookId: Uuid,
+  planVersion: z.number().int(),
+  pacingMode: PacingMode,
+  nightlyGoalPages: z.number().int(),
+  startsOn: z.iso.date(),
+  createdAt: z.iso.datetime(),
+});
+export type PlanSummary = z.infer<typeof PlanSummary>;
+
+// ---- GET /v1/plans?bookId= ----
+export const ListPlansResponse = z.object({
+  plans: z.array(PlanSummary),
+});
+export type ListPlansResponse = z.infer<typeof ListPlansResponse>;
 
 export const PlanResponse = z.object({
   planId: Uuid,
