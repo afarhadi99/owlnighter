@@ -104,6 +104,28 @@ controller regression + live e2e + on-device drive.
   on every open** (no get-or-create). Top phase-5 item: make plan generation
   async/faster + get-or-create + a real loading/error state on the path screen.
 
+### Round 5 — THE FULL LOOP RUNS ON DEVICE (2026-07-10)
+
+Fanned out 3 agents (backend get-or-create + Groq-first plans; mobile launcher
+UX + motion; CI/docs hardening), then drove the complete loop on emulator-5554:
+
+**library (title) → path map (opened in <1s via plan reuse — was 58s timeout) →
+nightly session (`steps/:id/start` 200) → 4-question Gemini quiz about the real
+book (Genly Ai, the Ekumen, kemmering, the ice) → submit 200 →
+"Nice reading tonight!" 4/4 correct · 🔥 1-day streak · ⚡ +20 XP.**
+
+- `GET /v1/plans?bookId=` + `ifExists:"reuse"` (default): live reuse in **292ms**,
+  no AI call. Plans now Groq-first (blueprint two-pass), Gemini fallback.
+- Mobile PlanLauncher: instant open for existing plans; "Crafting your nightly
+  path…" + retryable error for fresh ones. 74 dart tests (4 new).
+- CI: Flutter analyze/test now **blocking** across all packages; api suite in CI.
+- Suites: **68 backend + 74 dart tests green**; openapi **19 paths**; APK builds.
+
+**Stage 1 (core reading loop) acceptance is now fully verified on device.**
+Stage 4 (motion) partially verified live: path nodes, card transitions,
+celebration + haptics. Remaining: Rive flame asset, XP overlay flourish,
+frame profiling.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
