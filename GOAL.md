@@ -42,7 +42,7 @@ Flutter tree is authored but can't compile here (no SDK).
 | Jobs (TTS/reminders) | `packages/ts/jobs` | ✅ builds |
 | Fastify API (11 routes) | `apps/api` | ✅ typechecks · inject smoke test passes |
 | Next.js admin console | `apps/admin` | ✅ `next build` compiles (11 routes) |
-| Flutter app + Dart pkgs | `apps/mobile` + `packages/dart/*` | ✅ **builds Android debug APK** (212 MB) · analyze-clean · 11 widget tests pass |
+| Flutter app + Dart pkgs | `apps/mobile` + `packages/dart/*` | ✅ **runs on emulator** · dev-auth + live API (library loads) · APK builds · analyze-clean · widget tests pass |
 | Infra (Docker/CloudRun/FCM) | `infra/*` | 🟡 authored — YAML valid, not deployed |
 | CI (GitHub Actions) | `.github/workflows` | ✅ mirrors local green checks |
 
@@ -69,6 +69,20 @@ sonnet/medium for admin). Results, all **verified by the controller**:
   TTS wired with graceful 503. **15/15 node:test** pass; all 5 endpoints exercised
   **live against Postgres** (200s).
 - **Admin:** Overview + TTS inspector + Quiz-QA wired to the live endpoints; `next build` compiles.
+
+### Round 3 — runs on device (2026-07-10)
+
+Fanned out 3 more agents (opus/high mobile + backend, sonnet/med admin).
+- **Mobile:** dev-auth + `10.0.2.2` emulator host + core loop wired to real repos.
+  **VERIFIED ON DEVICE (emulator-5554):** app launches → boots past auth →
+  `GET /healthz` + `GET /v1/library/books` return **200 over 10.0.2.2** → the
+  seeded book renders in "Your library". analyze clean; 7 widget tests pass; APK builds.
+- **Backend:** `GET /v1/admin/plans`, `GET /v1/admin/quizzes`, FCM HTTP v1 push
+  (service-account JWT via node:crypto, graceful `not_configured`), `POST
+  /v1/admin/push/test`. openapi now **18 paths**; **20/20** tests.
+- **Admin:** Plans QA + Quiz QA wired to the live list endpoints.
+- Known follow-up: the library-list endpoint returns book ids, not titles — the
+  card shows "Book 3ce25e75". Enrich `LibraryBooksResponse` with title/author/cover.
 
 ---
 
@@ -162,3 +176,7 @@ _Updated as we go. Full detail in `git log`._
 - `feat(api): library list, step-start, admin metrics/tts/quiz-invalidate + Deepgram TTS + tests`
 - `feat(admin): wire Overview, TTS inspector, and Quiz QA to live endpoints`
 - `feat(mobile): Android platform + debug APK builds; widget tests`
+- `docs(goal): record round-2 (Android APK build, 5 endpoints, admin wiring)`
+- `feat(api,jobs): admin plan/quiz lists + FCM push pipeline`
+- `feat(admin): wire Plans QA + Quiz QA to live list endpoints`
+- `feat(mobile): dev-auth + emulator host — core loop runs against live API`
