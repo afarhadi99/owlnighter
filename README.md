@@ -13,7 +13,15 @@ citations so the app never fakes precision it doesn't have.
 
 ---
 
-> **Status:** early scaffold. This is a real, structured monorepo built from
+> **Status:** runs end-to-end. The Flutter app runs on an Android emulator
+> against the live local API with dev auth (Google Books/Open Library search →
+> Gemini grounding → library → Gemini/Groq plan generation → quiz → streak),
+> and the admin console's live pages render against the same API. The full
+> on-device loop is verified: path map → nightly session → quiz → 4/4 → streak
+> celebration. **68 backend tests** (`node:test`, no Postgres required) +
+> **74 Dart tests** are green, the OpenAPI contract emits **19 paths**, and the
+> Android debug APK builds.
+> This is a real, structured monorepo built from
 > [`docs/reading-research.md`](docs/reading-research.md). See
 > [`GOAL.md`](GOAL.md) for the live build plan and what is done vs. pending.
 
@@ -64,7 +72,13 @@ flowchart TD
     Books[Google Books / Open Library] --> API
 ```
 
-## Getting started
+## Quickstart
+
+For the fastest loop that exercises the **real** API end-to-end against a
+local Postgres (no full Supabase project needed), plus how to point the
+Flutter app at it on an emulator, see **[`docs/local-dev.md`](docs/local-dev.md)**.
+
+The short version:
 
 ```bash
 # 1. Install TS deps
@@ -83,6 +97,25 @@ pnpm dev:admin
 dart pub global activate melos
 melos bootstrap
 cd apps/mobile && flutter run
+```
+
+## Testing
+
+See **[`docs/testing.md`](docs/testing.md)** for the full list. In short:
+
+```bash
+# Backend — 63 tests, node:test, no Postgres required
+pnpm --filter @owlnighter/api test
+
+# Every Dart package — analyze + test (api_client is analyze-only, no tests yet)
+cd apps/mobile && flutter analyze && flutter test
+cd packages/dart/app_core && flutter analyze && flutter test
+cd packages/dart/offline && flutter analyze && flutter test
+cd packages/dart/design_system && flutter analyze && flutter test
+cd packages/dart/api_client && flutter analyze
+
+# OpenAPI contract must be regenerated & committed after any Zod change
+pnpm contracts:openapi
 ```
 
 ## Repo conventions

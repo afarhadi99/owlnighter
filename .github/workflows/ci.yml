@@ -46,12 +46,25 @@ jobs:
           git diff --exit-code -- packages/ts/contracts/openapi.json \
             || (echo "::error::openapi.json is stale. Run 'pnpm contracts:openapi' and commit." && exit 1)
 
+      # 63 tests, node --import tsx --test, no Postgres required (unit + inject
+      # smoke tests only — nothing here talks to a real database).
+      - name: API tests
+        run: pnpm --filter @owlnighter/api test
+
   flutter:
     name: Flutter (format, analyze, test)
     runs-on: ubuntu-latest
-    # Only run when the mobile app exists / changed. The app is early, so we
-    # keep this job scoped and its analyze/test steps non-blocking for now
-    # (see continue-on-error below) — flip them to blocking once it stabilizes.
+    # Analyze + test are stable across the app and every Dart package now, so
+    # this job is fully blocking — no continue-on-error anywhere below.
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - apps/mobile
+          - packages/dart/app_core
+          - packages/dart/offline
+          - packages/dart/design_system
+          - packages/dart/api_client
     steps:
       - uses: actions/checkout@v4
 
@@ -61,22 +74,29 @@ jobs:
           channel: stable
 
       - name: Resolve dependencies
-        working-directory: apps/mobile
+        working-directory: ${{ matrix.package }}
         run: flutter pub get
 
       # Formatting is cheap and deterministic, so keep it blocking from day one.
       - name: Format check
-        working-directory: apps/mobile
+        working-directory: ${{ matrix.package }}
         run: dart format --set-exit-if-changed .
 
-      # Non-blocking initially: the app is scaffolding and will have analyzer
-      # noise / thin tests early. Remove continue-on-error once it's real.
       - name: Analyze
-        working-directory: apps/mobile
-        continue-on-error: true
+        working-directory: ${{ matrix.package }}
         run: flutter analyze
 
+      # api_client has no test/ directory yet — analyze-clean is all we can
+      # ask of it for now. Every other package has real tests, so run them.
       - name: Test
-        working-directory: apps/mobile
-        continue-on-error: true
-        run: flutter test
+        working-directory: ${{ matrix.package }}
+        run: |
+          if [ -d test ]; then
+            flutter test
+          else
+            echo "No test/ directory in ${{ matrix.package }} — analyze-only package, skipping."
+          fi
+
+      # An APK build step (flutter build apk) is intentionally not part of
+      # this job — it's slow (multi-minute Gradle/AGP cold start) and belongs
+      # in a separate, less-frequent release workflow instead.
