@@ -126,6 +126,27 @@ Stage 4 (motion) partially verified live: path nodes, card transitions,
 celebration + haptics. Remaining: Rive flame asset, XP overlay flourish,
 frame profiling.
 
+### Round 6 — SVG art + sound (2026-07-12)
+
+Delegated to opus (design_system art → mobile SFX/integration pipeline) and
+sonnet (admin), then verified on device:
+- **design_system/art:** five SVG-path CustomPainter widgets — NightSky (seeded
+  twinkling stars + crescent moon), OwlMascot (idle/cheer/sleepy — the mascot
+  exists!), FlameFlicker (3-layer organic flame; StreakFlame now delegates to it,
+  Rive placeholder retired), ConfettiBurst (physics particles), PathScenery.
+  All reduced-motion safe. +20 widget tests (suite 33).
+- **mobile:** six original synthesized WAV SFX (tools/gen_sfx.mjs) + SfxService
+  with a persisted Settings toggle; art wired into path map (night sky + moon),
+  nightly (sleepy owl), quiz (tap/correct/wrong cues), celebration (confetti +
+  cheering owl + flame + fanfare). Dart suite now **106 tests**.
+- **admin:** inline-SVG blinking OwlLogo, count-up StatTiles, orbiting-star
+  spinner, WebAudio chimes (no assets), reduced-motion + mute respected.
+- **ON DEVICE:** starfield path map with the wave-5 chapter shown as a green ✓
+  node, sleepy owl on the nightly screen, and a real 4/4 pass ending in the
+  cheering owl + flame celebration (submit 200; streak intact).
+- Known cosmetic follow-up: NightSky on the nightly screen covers only the top
+  content area (bottom half plain) — extend the backdrop to full height.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
