@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Amber crescent moon: an amber disc with a night-navy disc offset over it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFB020"
+        android:pathData="M12,3 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
+    <path
+        android:fillColor="#141A3A"
+        android:pathData="M16,2 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
+</vector>

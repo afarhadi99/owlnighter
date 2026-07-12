@@ -10,6 +10,7 @@ import '../../app/router.dart';
 import '../../services/sfx/sfx_service.dart';
 import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
+import '../../shared/widgets/adaptive_back_button.dart';
 import '../reading_path/reading_path_controller.dart';
 
 /// The full-screen completion sequence — the payoff beat that replaces the old
@@ -78,8 +79,17 @@ class _CompletionPageState extends ConsumerState<CompletionPage> {
         : ((result.correctCount / result.totalCount) * 100).round();
     final intensity = (streak.currentStreak / 14.0).clamp(0.4, 1.0);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
+    // CompletionPage manages its own NightSky + confetti layering, so it does
+    // not use NightScaffold's showSky; it wraps in NightScaffold only for the
+    // consistent solid night900 background (no black band). The app-bar leading
+    // is a subtle escape hatch — the primary path is CONTINUE, but a user
+    // should never be fully stuck (pops when possible, else → library).
+    return NightScaffold(
+      showSky: false,
+      leading: const AdaptiveBackButton(
+        fallbackLocation: Routes.library,
+        icon: Icons.close_rounded,
+      ),
       body: Stack(
         children: [
           const Positioned.fill(child: NightSky()),

@@ -11,6 +11,7 @@ import '../../services/api/repository_providers.dart';
 import '../../services/sfx/sfx_service.dart';
 import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
+import '../../shared/widgets/adaptive_back_button.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/quiz_mode_badge.dart';
 import '../audio/recap_player.dart';
@@ -48,40 +49,23 @@ class _NightlySessionPageState extends ConsumerState<NightlySessionPage> {
   @override
   Widget build(BuildContext context) {
     final stepAsync = ref.watch(nightlyStepProvider(widget.stepId));
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text("Tonight's reading"),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      // StackFit.expand makes the Stack fill the whole body so the Positioned
-      // .fill night sky covers the full screen height — not just the top
-      // content area (fixes the audit's "sky stops mid-screen").
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // A subtler night sky (fewer stars, smaller moon) so the reading copy
-          // stays legible.
-          const Positioned.fill(
-            child: NightSky(
-              starCount: 24,
-              moonRadius: 24,
-              moonAlignment: Alignment(0.78, -0.82),
-            ),
-          ),
-          AsyncValueView<PlanStep?>(
-            value: stepAsync,
-            onRetry: () => ref.invalidate(nightlyStepProvider(widget.stepId)),
-            data: (step) => step == null
-                ? const _MissingStep()
-                : _SessionBody(
-                    planId: widget.planId,
-                    stepId: widget.stepId,
-                    step: step,
-                  ),
-          ),
-        ],
+    return NightScaffold(
+      title: "Tonight's reading",
+      // Always offer a way back to the library even when this screen has no
+      // route to pop (e.g. reached via a stack-replacing navigation).
+      leading: const AdaptiveBackButton(fallbackLocation: Routes.library),
+      // A subtler night sky (fewer stars) so the reading copy stays legible.
+      starCount: 24,
+      body: AsyncValueView<PlanStep?>(
+        value: stepAsync,
+        onRetry: () => ref.invalidate(nightlyStepProvider(widget.stepId)),
+        data: (step) => step == null
+            ? const _MissingStep()
+            : _SessionBody(
+                planId: widget.planId,
+                stepId: widget.stepId,
+                step: step,
+              ),
       ),
     );
   }

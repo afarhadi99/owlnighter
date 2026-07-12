@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../services/api/auth_repository_impl.dart';
+import '../../services/notifications/notification_scheduler.dart';
+import '../../services/notifications/reminder_settings.dart';
 import '../../services/sfx/sfx_service.dart';
 import '../../services/sfx/sound_effect.dart';
 import '../../services/sfx/sound_settings.dart';
@@ -17,8 +19,9 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+    return NightScaffold(
+      title: 'Settings',
+      showSky: false,
       body: ListView(
         children: [
           SwitchListTile(
@@ -37,14 +40,7 @@ class SettingsPage extends ConsumerWidget {
             title: Text('Recap voice'),
             subtitle: Text('Thalia — English (US)'),
           ),
-          // Reminders aren't wired yet — an explicitly disabled row so nothing
-          // dead-ends (replaces the old chevron that went to an empty page).
-          const ListTile(
-            enabled: false,
-            leading: Icon(Icons.notifications_rounded),
-            title: Text('Reminders'),
-            subtitle: Text('Coming soon'),
-          ),
+          ..._reminderRows(context, ref),
           const Divider(),
           ListTile(
             leading:
@@ -73,5 +69,47 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// The "Nightly reminder" toggle plus, when enabled, a time-picker row.
+  /// Saving schedules or cancels a daily local notification.
+  List<Widget> _reminderRows(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(reminderControllerProvider);
+    final time = TimeOfDay(hour: prefs.time.hour, minute: prefs.time.minute);
+    return [
+      SwitchListTile(
+        secondary: const Icon(Icons.notifications_active_rounded),
+        title: const Text('Nightly reminder'),
+        subtitle: Text(
+          prefs.enabled
+              ? 'Every day at ${time.format(context)}'
+              : 'Get a nightly nudge to read',
+        ),
+        value: prefs.enabled,
+        onChanged: (value) {
+          ref.read(reminderControllerProvider.notifier).setEnabled(value);
+          if (value) ref.read(sfxServiceProvider).play(SoundEffect.tap);
+        },
+      ),
+      if (prefs.enabled)
+        ListTile(
+          leading: const Icon(Icons.schedule_rounded),
+          title: const Text('Reminder time'),
+          subtitle: Text(time.format(context)),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: time,
+              helpText: 'Nightly reminder time',
+            );
+            if (picked != null) {
+              await ref.read(reminderControllerProvider.notifier).setTime(
+                    ReminderTime(picked.hour, picked.minute),
+                  );
+            }
+          },
+        ),
+    ];
   }
 }

@@ -29,7 +29,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
-    return Scaffold(
+    return NightScaffold(
+      showSky: false,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

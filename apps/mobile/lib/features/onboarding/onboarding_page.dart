@@ -34,7 +34,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return NightScaffold(
+      showSky: false,
       body: SafeArea(
         child: Column(
           children: [

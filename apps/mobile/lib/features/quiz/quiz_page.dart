@@ -34,7 +34,8 @@ class QuizPage extends ConsumerWidget {
     final gen = ref.watch(quizGenControllerProvider).valueOrNull;
     // Guard: the quiz must have been generated in the session before we got here.
     if (gen == null || gen.quizId != quizId) {
-      return const Scaffold(
+      return const NightScaffold(
+        showSky: false,
         body: Center(child: Text('Quiz expired. Reopen from the session.')),
       );
     }
@@ -88,11 +89,11 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
   Widget build(BuildContext context) {
     final state = ref.watch(quizControllerProvider(quiz));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Question ${state.currentIndex + 1} of ${state.total}'),
-        automaticallyImplyLeading: false,
-      ),
+    return NightScaffold(
+      title: 'Question ${state.currentIndex + 1} of ${state.total}',
+      // Mid-quiz back navigation is intentionally disabled.
+      automaticallyImplyLeading: false,
+      showSky: false,
       body: SafeArea(
         child: Column(
           children: [

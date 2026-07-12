@@ -19,24 +19,13 @@ class StreaksPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(myStatsProvider);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Streak'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: NightSky(starCount: 28, moonRadius: 22),
-          ),
-          AsyncValueView<MyStats>(
-            value: stats,
-            onRetry: () => ref.invalidate(myStatsProvider),
-            data: (s) => _StatsBody(stats: s),
-          ),
-        ],
+    return NightScaffold(
+      title: 'Streak',
+      starCount: 28,
+      body: AsyncValueView<MyStats>(
+        value: stats,
+        onRetry: () => ref.invalidate(myStatsProvider),
+        data: (s) => _StatsBody(stats: s),
       ),
     );
   }

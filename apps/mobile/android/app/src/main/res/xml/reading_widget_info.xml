@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AppWidgetProviderInfo for the owlnighter reading widget.
+
+     updatePeriodMillis is 30 min (1800000) — Android's practical floor. This is
+     what lets the time-of-day bucket advance without the app running; see the
+     v1 limitation note in the task follow-ups (no WorkManager yet). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="90dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_reading"
+    android:previewLayout="@layout/widget_reading"
+    android:description="@string/reading_widget_description"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

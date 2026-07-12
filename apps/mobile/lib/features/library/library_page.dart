@@ -17,8 +17,9 @@ class LibraryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final library = ref.watch(libraryProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Your library')),
+    return NightScaffold(
+      title: 'Your library',
+      showSky: false,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showAddBookSheet(context),
         icon: const Icon(Icons.add),

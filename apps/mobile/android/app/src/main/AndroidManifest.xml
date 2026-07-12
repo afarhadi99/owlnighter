@@ -52,6 +52,32 @@
                     android:pathPrefix="/plan"/>
             </intent-filter>
         </activity>
+
+        <!-- Home-screen reading widget (ReadingWidgetProvider.kt). onUpdate
+             reads cached reading state from the home_widget prefs and redraws;
+             tapping opens MainActivity. -->
+        <receiver
+            android:name=".ReadingWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/reading_widget_info" />
+        </receiver>
+
+        <!-- FCM: the channel a background/terminated remote push is posted to
+             when the payload has no explicit channel. Must match the 'nightly'
+             channel created by flutter_local_notifications (see
+             services/notifications/notification_scheduler.dart). The
+             FirebaseMessagingService is contributed by the firebase_messaging
+             plugin's own manifest and merged automatically — no manual
+             <service> declaration is needed here. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="nightly" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

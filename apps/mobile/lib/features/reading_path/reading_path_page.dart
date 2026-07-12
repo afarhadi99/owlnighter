@@ -7,6 +7,7 @@ import '../../app/router.dart';
 import '../../services/sfx/sfx_service.dart';
 import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
+import '../../shared/widgets/adaptive_back_button.dart';
 import '../../shared/widgets/async_value_view.dart';
 import 'path_map_painter.dart';
 import 'reading_path_controller.dart';
@@ -29,25 +30,16 @@ class ReadingPathPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final planAsync = ref.watch(readingPathControllerProvider(planId));
-    return Scaffold(
-      // Transparent so the NightSky backdrop shows through the whole screen.
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('Your reading path'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Stack(
-        children: [
-          // Fixed star-field + moon behind everything.
-          const Positioned.fill(child: NightSky()),
-          AsyncValueView<ReadingPlan>(
-            value: planAsync,
-            onRetry: () =>
-                ref.invalidate(readingPathControllerProvider(planId)),
-            data: (plan) => _PathMap(plan: plan, justCompleted: justCompleted),
-          ),
-        ],
+    return NightScaffold(
+      title: 'Your reading path',
+      // Always offer a way back: pop when possible, else fall back to the
+      // library. This screen can be reached via a stack-replacing `go(...)`
+      // from the post-quiz flow, where there is nothing to pop.
+      leading: const AdaptiveBackButton(fallbackLocation: Routes.library),
+      body: AsyncValueView<ReadingPlan>(
+        value: planAsync,
+        onRetry: () => ref.invalidate(readingPathControllerProvider(planId)),
+        data: (plan) => _PathMap(plan: plan, justCompleted: justCompleted),
       ),
     );
   }

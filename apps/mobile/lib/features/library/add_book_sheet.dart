@@ -92,6 +92,7 @@ class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
                   )
                 : const _EmptyState(
                     message: 'Search for a title or author',
+                    owlState: OwlState.greet,
                   ),
           ),
         ],
@@ -122,10 +123,13 @@ class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
   }
 }
 
-/// A NightSky-tinted empty state with the sleepy owl and a prompt.
+/// A NightSky-tinted empty state with the owl and a prompt. Uses [OwlState.greet]
+/// for the initial "come search" invitation, and [OwlState.sleepy] once a
+/// search has come back empty (nothing to be excited about).
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.message});
+  const _EmptyState({required this.message, this.owlState = OwlState.sleepy});
   final String message;
+  final OwlState owlState;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +143,7 @@ class _EmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const OwlMascot(state: OwlState.sleepy, size: 96),
+              OwlMascot(state: owlState, size: 96),
               const SizedBox(height: AppSpacing.md),
               Text(
                 message,

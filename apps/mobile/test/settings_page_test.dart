@@ -20,7 +20,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('Sound effects'), findsOneWidget);
-      expect(find.byType(SwitchListTile), findsOneWidget);
+      // Sound effects + the new nightly-reminder toggle.
+      expect(find.byType(SwitchListTile), findsNWidgets(2));
       expect(find.text('Recap voice'), findsOneWidget);
       // Friendly label, not the raw model id.
       expect(find.text('Thalia — English (US)'), findsOneWidget);
@@ -28,16 +29,16 @@ void main() {
     });
 
     testWidgets(
-        'replaces the dead Notifications row with a disabled reminders '
-        'row (nothing dead-ends)', (tester) async {
+        'replaces the dead Notifications row with a real nightly-reminder '
+        'toggle (nothing dead-ends)', (tester) async {
       await tester.pumpWidget(_host());
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // No "Notifications" chevron row any more.
       expect(find.text('Notifications'), findsNothing);
-      // A clearly-disabled "coming soon" row instead.
-      expect(find.text('Reminders'), findsOneWidget);
-      expect(find.text('Coming soon'), findsOneWidget);
+      // A real, functional reminder row instead of the old "coming soon".
+      expect(find.text('Nightly reminder'), findsOneWidget);
+      expect(find.text('Coming soon'), findsNothing);
     });
 
     testWidgets('groups admin/debug under a Developer section', (tester) async {

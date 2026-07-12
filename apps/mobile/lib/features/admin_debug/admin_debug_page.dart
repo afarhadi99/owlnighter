@@ -14,8 +14,9 @@ class AdminDebugPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final queue = ref.watch(syncQueueProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Admin / debug')),
+    return NightScaffold(
+      title: 'Admin / debug',
+      showSky: false,
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [

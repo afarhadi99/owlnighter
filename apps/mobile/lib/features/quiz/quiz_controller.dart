@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:app_core/app_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/api/extras_api.dart';
 import '../../services/api/repository_providers.dart';
+import '../../services/widget/home_widget_bridge.dart';
 import '../nightly_session/nightly_session_controller.dart';
 
 /// Immutable UI state for the per-question feedback loop.
@@ -149,6 +152,14 @@ class QuizController
       state = state.copyWith(submitting: false, result: result);
       // The path map's plan state changed; drop cached plan so it refetches.
       ref.invalidate(nightlyStepProvider);
+      // Tonight's reading is done — refresh the home-screen widget to its
+      // success state with the new streak. Best-effort, never blocks submit.
+      unawaited(
+        HomeWidgetBridge.publish(
+          hasReadToday: true,
+          currentStreak: result.streak.currentStreak,
+        ),
+      );
       return result;
     } on Exception catch (e) {
       state = state.copyWith(submitting: false, error: e);
