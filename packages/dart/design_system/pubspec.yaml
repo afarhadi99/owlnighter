@@ -15,6 +15,10 @@ dependencies:
   rive: ^0.13.13
   # Lottie is used sparingly for one-shot celebratory loops.
   lottie: ^3.1.2
+  # Parses hand-authored SVG path strings ('M/C/Q/L/Z') into dart:ui Paths so
+  # the art layer (owl, flame, moon, confetti shapes) can be drawn + animated
+  # with CustomPainter instead of shipping raster/Rive binaries.
+  path_drawing: ^1.0.1
 
 dev_dependencies:
   flutter_lints: ^4.0.0
