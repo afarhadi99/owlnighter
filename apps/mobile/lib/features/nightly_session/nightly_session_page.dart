@@ -55,7 +55,11 @@ class _NightlySessionPageState extends ConsumerState<NightlySessionPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
+      // StackFit.expand makes the Stack fill the whole body so the Positioned
+      // .fill night sky covers the full screen height — not just the top
+      // content area (fixes the audit's "sky stops mid-screen").
       body: Stack(
+        fit: StackFit.expand,
         children: [
           // A subtler night sky (fewer stars, smaller moon) so the reading copy
           // stays legible.
@@ -156,12 +160,13 @@ class _SessionBody extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           RecapPlayer(stepId: stepId),
           const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            width: double.infinity,
-            child: RewardButton(
-              onTap: gen.isLoading ? () {} : () => _startQuiz(context, ref),
-              child: _StartButton(loading: gen.isLoading),
-            ),
+          ChunkyButton(
+            label: gen.isLoading
+                ? 'Preparing your quiz…'
+                : "I've read it — start quiz",
+            icon: gen.isLoading ? null : Icons.auto_stories_rounded,
+            fullWidth: true,
+            onPressed: gen.isLoading ? null : () => _startQuiz(context, ref),
           ),
           if (gen.hasError) ...[
             const SizedBox(height: AppSpacing.md),
@@ -186,35 +191,5 @@ class _SessionBody extends ConsumerWidget {
     } on Exception {
       // Error is surfaced via the controller's AsyncError state.
     }
-  }
-}
-
-class _StartButton extends StatelessWidget {
-  const _StartButton({required this.loading});
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.indigo500,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      alignment: Alignment.center,
-      child: loading
-          ? const SizedBox(
-              height: 22,
-              width: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: Colors.white,
-              ),
-            )
-          : Text(
-              "I've read it — start quiz",
-              style: AppType.label.copyWith(color: Colors.white),
-            ),
-    );
   }
 }

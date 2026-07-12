@@ -1,21 +1,34 @@
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/api/extras_api.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/quiz_mode_badge.dart';
 
 /// Renders one quiz question with the appropriate input for its kind.
+///
+/// Once [verdict] is set (the answer has been CHECKed) the options lock and
+/// restyle for the instant-feedback loop: the chosen option turns green when
+/// correct or red when wrong, and — if wrong — the correct option is revealed
+/// in green.
 class QuestionCard extends StatelessWidget {
   const QuestionCard({
     super.key,
     required this.question,
     required this.selected,
     required this.onSelect,
+    this.verdict,
   });
 
   final QuizQuestion question;
   final String? selected;
   final ValueChanged<String> onSelect;
+
+  /// Instant-feedback verdict, present once the answer is checked. When set the
+  /// inputs are locked.
+  final QuizCheckResult? verdict;
+
+  bool get _locked => verdict != null;
 
   @override
   Widget build(BuildContext context) {
@@ -49,19 +62,35 @@ class QuestionCard extends StatelessWidget {
       itemBuilder: (context, i) {
         final option = options[i];
         final isSelected = selected == option;
+        final isCorrectOption =
+            verdict != null && option == verdict!.correctAnswer;
         return _OptionTile(
           label: option,
           selected: isSelected,
-          onTap: () => onSelect(option),
+          state: _tileState(isSelected, isCorrectOption),
+          onTap: _locked ? null : () => onSelect(option),
         );
       },
     );
+  }
+
+  /// The visual state for one option given the verdict.
+  _OptionState _tileState(bool isSelected, bool isCorrectOption) {
+    if (verdict == null) {
+      return isSelected ? _OptionState.selected : _OptionState.idle;
+    }
+    // After checking: reveal the correct option in green; if the reader picked
+    // a wrong one, mark it red.
+    if (isCorrectOption) return _OptionState.correct;
+    if (isSelected) return _OptionState.wrong;
+    return _OptionState.idle;
   }
 
   Widget _shortAnswer() {
     return TextField(
       minLines: 3,
       maxLines: 6,
+      enabled: !_locked,
       onChanged: onSelect,
       decoration: const InputDecoration(
         border: OutlineInputBorder(),
@@ -71,18 +100,56 @@ class QuestionCard extends StatelessWidget {
   }
 }
 
+enum _OptionState { idle, selected, correct, wrong }
+
 class _OptionTile extends StatelessWidget {
   const _OptionTile({
     required this.label,
     required this.selected,
+    required this.state,
     required this.onTap,
   });
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final _OptionState state;
+  final VoidCallback? onTap;
+
+  ({Color fill, Color border, Color ink, IconData icon}) get _style {
+    switch (state) {
+      case _OptionState.idle:
+        return (
+          fill: AppColors.night800,
+          border: AppColors.night700,
+          ink: AppColors.inkMuted,
+          icon: Icons.radio_button_unchecked_rounded,
+        );
+      case _OptionState.selected:
+        return (
+          fill: AppColors.indigo500.withValues(alpha: 0.18),
+          border: AppColors.indigo500,
+          ink: AppColors.indigo400,
+          icon: Icons.radio_button_checked_rounded,
+        );
+      case _OptionState.correct:
+        return (
+          fill: AppColors.successJuice.withValues(alpha: 0.2),
+          border: AppColors.successJuice,
+          ink: AppColors.successJuice,
+          icon: Icons.check_circle_rounded,
+        );
+      case _OptionState.wrong:
+        return (
+          fill: AppColors.danger500.withValues(alpha: 0.2),
+          border: AppColors.danger500,
+          ink: AppColors.danger500,
+          icon: Icons.cancel_rounded,
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final s = _style;
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadius.md),
       onTap: onTap,
@@ -90,23 +157,13 @@ class _OptionTile extends StatelessWidget {
         duration: AppMotion.fast,
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.indigo500.withValues(alpha: 0.18)
-              : AppColors.night800,
+          color: s.fill,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: selected ? AppColors.indigo500 : AppColors.night700,
-            width: 1.5,
-          ),
+          border: Border.all(color: s.border, width: 1.5),
         ),
         child: Row(
           children: [
-            Icon(
-              selected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: selected ? AppColors.indigo400 : AppColors.inkMuted,
-            ),
+            Icon(s.icon, color: s.ink),
             const SizedBox(width: AppSpacing.md),
             Expanded(child: Text(label, style: AppType.body)),
           ],

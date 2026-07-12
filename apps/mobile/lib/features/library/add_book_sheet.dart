@@ -12,6 +12,10 @@ Future<void> showAddBookSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    backgroundColor: AppColors.night900,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
     builder: (_) => const FractionallySizedBox(
       heightFactor: 0.9,
       child: _AddBookSheet(),
@@ -27,12 +31,18 @@ class _AddBookSheet extends ConsumerStatefulWidget {
 
 class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
   final _titleController = TextEditingController();
-  bool _adding = false;
+  String? _addingId;
+  bool _searched = false;
 
   @override
   void dispose() {
     _titleController.dispose();
     super.dispose();
+  }
+
+  void _runSearch(String v) {
+    setState(() => _searched = true);
+    ref.read(bookSearchControllerProvider.notifier).search(v);
   }
 
   @override
@@ -58,22 +68,31 @@ class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.search),
             ),
-            onSubmitted: (v) =>
-                ref.read(bookSearchControllerProvider.notifier).search(v),
+            onSubmitted: _runSearch,
           ),
           const SizedBox(height: AppSpacing.md),
           Expanded(
-            child: AsyncValueView<List<CatalogCandidate>>(
-              value: results,
-              data: (candidates) => ListView.builder(
-                itemCount: candidates.length,
-                itemBuilder: (_, i) => _CandidateTile(
-                  candidate: candidates[i],
-                  adding: _adding,
-                  onAdd: () => _addCandidate(candidates[i]),
-                ),
-              ),
-            ),
+            child: _searched
+                ? AsyncValueView<List<CatalogCandidate>>(
+                    value: results,
+                    data: (candidates) => candidates.isEmpty
+                        ? const _EmptyState(
+                            message: 'No matches — try another title.',
+                          )
+                        : ListView.separated(
+                            itemCount: candidates.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: AppSpacing.sm),
+                            itemBuilder: (_, i) => _CandidateTile(
+                              candidate: candidates[i],
+                              adding: _addingId == candidates[i].sourceId,
+                              onAdd: () => _addCandidate(candidates[i]),
+                            ),
+                          ),
+                  )
+                : const _EmptyState(
+                    message: 'Search for a title or author',
+                  ),
           ),
         ],
       ),
@@ -81,7 +100,7 @@ class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
   }
 
   Future<void> _addCandidate(CatalogCandidate candidate) async {
-    setState(() => _adding = true);
+    setState(() => _addingId = candidate.sourceId);
     try {
       final library = ref.read(libraryRepositoryProvider);
       final grounded = await library.groundBook(
@@ -98,8 +117,40 @@ class _AddBookSheetState extends ConsumerState<_AddBookSheet> {
             .showSnackBar(SnackBar(content: Text('Could not add: $e')));
       }
     } finally {
-      if (mounted) setState(() => _adding = false);
+      if (mounted) setState(() => _addingId = null);
     }
+  }
+}
+
+/// A NightSky-tinted empty state with the sleepy owl and a prompt.
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const Positioned.fill(
+          child: NightSky(starCount: 18, moonRadius: 18),
+        ),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const OwlMascot(state: OwlState.sleepy, size: 96),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppType.body.copyWith(color: AppColors.inkMuted),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -115,16 +166,97 @@ class _CandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(candidate.title),
-      subtitle: Text(candidate.authors.join(', ')),
-      trailing: adding
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(),
-            )
-          : TextButton(onPressed: onAdd, child: const Text('Add')),
+    final authors = candidate.authors.join(', ');
+    final year = candidate.publishedYear;
+    final meta = [
+      if (authors.isNotEmpty) authors,
+      if (year != null) '$year',
+    ].join(' · ');
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.night800,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.night700),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Cover(coverUrl: candidate.coverUrl),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  candidate.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppType.label,
+                ),
+                if (meta.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppType.caption.copyWith(color: AppColors.inkMuted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          adding
+              ? const Padding(
+                  padding: EdgeInsets.all(AppSpacing.sm),
+                  child: SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : ChunkyButton(
+                  label: 'Add',
+                  onPressed: onAdd,
+                ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small book cover thumbnail; falls back to a book glyph in a tinted tile.
+class _Cover extends StatelessWidget {
+  const _Cover({required this.coverUrl});
+  final String? coverUrl;
+
+  static const double _w = 44;
+  static const double _h = 62;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = coverUrl;
+    final fallback = Container(
+      width: _w,
+      height: _h,
+      decoration: BoxDecoration(
+        color: AppColors.indigo500.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(Icons.menu_book_rounded, color: AppColors.indigo400),
+    );
+    if (url == null || url.isEmpty) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Image.network(
+        url,
+        width: _w,
+        height: _h,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
     );
   }
 }

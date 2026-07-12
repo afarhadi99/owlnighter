@@ -154,7 +154,7 @@ class _LaunchError extends StatelessWidget {
               style: AppType.caption.copyWith(color: AppColors.inkMuted),
             ),
             const SizedBox(height: AppSpacing.lg),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            ChunkyButton(label: 'Retry', onPressed: onRetry),
           ],
         ),
       ),

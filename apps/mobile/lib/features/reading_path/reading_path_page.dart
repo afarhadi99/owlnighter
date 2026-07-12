@@ -15,8 +15,16 @@ import 'reading_path_controller.dart';
 /// a calm night sky with parallax scenery. Tapping the available node opens
 /// tonight's session.
 class ReadingPathPage extends ConsumerWidget {
-  const ReadingPathPage({super.key, required this.planId});
+  const ReadingPathPage({
+    super.key,
+    required this.planId,
+    this.justCompleted = false,
+  });
   final String planId;
+
+  /// True when we arrived here straight from finishing a night — the path
+  /// plays the unlock cue as the newly-available node appears.
+  final bool justCompleted;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,7 +45,7 @@ class ReadingPathPage extends ConsumerWidget {
             value: planAsync,
             onRetry: () =>
                 ref.invalidate(readingPathControllerProvider(planId)),
-            data: (plan) => _PathMap(plan: plan),
+            data: (plan) => _PathMap(plan: plan, justCompleted: justCompleted),
           ),
         ],
       ),
@@ -46,8 +54,9 @@ class ReadingPathPage extends ConsumerWidget {
 }
 
 class _PathMap extends ConsumerStatefulWidget {
-  const _PathMap({required this.plan});
+  const _PathMap({required this.plan, this.justCompleted = false});
   final ReadingPlan plan;
+  final bool justCompleted;
 
   @override
   ConsumerState<_PathMap> createState() => _PathMapState();
@@ -63,6 +72,13 @@ class _PathMapState extends ConsumerState<_PathMap> {
     super.initState();
     _scroll.addListener(_onScroll);
     _lastCompleted = _completedCount(widget.plan);
+    // Arrived fresh from a completed night: the plan already shows the new
+    // state, so play the unlock cue once after the first frame.
+    if (widget.justCompleted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(sfxServiceProvider).play(SoundEffect.unlock);
+      });
+    }
   }
 
   @override

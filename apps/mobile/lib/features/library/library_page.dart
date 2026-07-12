@@ -76,45 +76,86 @@ class _BookTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final author = book.authorLine;
-    return Card(
-      child: ListTile(
-        leading: _Cover(coverUrl: book.coverUrl),
-        title: Text(
-          book.displayTitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+    // Hand off to the launcher, which does get-or-create and owns the
+    // full-screen loading/error states (no silent bounce back here).
+    void open() => context.push(Routes.launch(book.bookId));
+    return InkWell(
+      onTap: open,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.night800,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.night700),
         ),
-        subtitle: Text(
-          author ?? 'Status: ${book.status.wire}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _Cover(coverUrl: book.coverUrl),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    book.displayTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppType.label,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    author ?? 'Status: ${book.status.wire}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppType.caption.copyWith(color: AppColors.inkMuted),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  ChunkyButton(
+                    label: 'Continue',
+                    icon: Icons.play_arrow_rounded,
+                    onPressed: open,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        trailing: const Icon(Icons.chevron_right_rounded),
-        // Hand off to the launcher, which does get-or-create and owns the
-        // full-screen loading/error states (no silent bounce back here).
-        onTap: () => context.push(Routes.launch(book.bookId)),
       ),
     );
   }
 }
 
 /// A small book cover: the real thumbnail when the list item carries one, else
-/// a book glyph. Network failures degrade gracefully to the glyph.
+/// a book glyph in a tinted tile. Network failures degrade to the glyph.
 class _Cover extends StatelessWidget {
   const _Cover({required this.coverUrl});
   final String? coverUrl;
 
+  static const double _w = 52;
+  static const double _h = 74;
+
   @override
   Widget build(BuildContext context) {
-    const fallback = Icon(Icons.menu_book_rounded);
     final url = coverUrl;
+    final fallback = Container(
+      width: _w,
+      height: _h,
+      decoration: BoxDecoration(
+        color: AppColors.indigo500.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(Icons.menu_book_rounded, color: AppColors.indigo400),
+    );
     if (url == null || url.isEmpty) return fallback;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Image.network(
         url,
-        width: 40,
-        height: 56,
+        width: _w,
+        height: _h,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => fallback,
       ),

@@ -2,6 +2,7 @@ import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:owlnighter/features/quiz/question_card.dart';
+import 'package:owlnighter/services/api/extras_api.dart';
 
 /// Puts [child] inside a MaterialApp + Scaffold so QuestionCard's `Expanded`
 /// (which needs a bounded height) and Material widgets (InkWell, TextField)
@@ -73,6 +74,51 @@ void main() {
         find.byIcon(Icons.radio_button_unchecked_rounded),
         findsNWidgets(2),
       );
+    });
+
+    testWidgets('a correct verdict restyles the chosen option green',
+        (tester) async {
+      bool selectedAgain = false;
+      await tester.pumpWidget(
+        _host(
+          QuestionCard(
+            question: _mcQuestion(),
+            selected: 'Ishmael',
+            verdict: const QuizCheckResult(
+              correct: true,
+              correctAnswer: 'Ishmael',
+            ),
+            onSelect: (_) => selectedAgain = true,
+          ),
+        ),
+      );
+
+      // The correct option shows the green check-circle; inputs are locked.
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      await tester.tap(find.text('Ishmael'));
+      await tester.pump();
+      expect(selectedAgain, isFalse);
+    });
+
+    testWidgets('a wrong verdict marks the pick red and reveals the answer',
+        (tester) async {
+      await tester.pumpWidget(
+        _host(
+          QuestionCard(
+            question: _mcQuestion(),
+            selected: 'Ahab',
+            verdict: const QuizCheckResult(
+              correct: false,
+              correctAnswer: 'Ishmael',
+            ),
+            onSelect: (_) {},
+          ),
+        ),
+      );
+
+      // Wrong pick → red cancel icon; correct option → green check-circle.
+      expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
     });
 
     testWidgets('true/false question renders exactly True and False',

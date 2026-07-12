@@ -1,20 +1,22 @@
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../app/router.dart';
 import '../../services/analytics/analytics.dart';
 import '../../services/sfx/sfx_service.dart';
 import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../nightly_session/nightly_session_controller.dart';
-import '../streaks/streak_celebration.dart';
 import 'question_card.dart';
 import 'quiz_controller.dart';
 
-/// The quiz screen. Reads the freshly-generated [QuizInstance] from the nightly
-/// session controller, swaps between question cards with a slide+fade, and on
-/// submit routes into the streak celebration — closing the core loop.
+/// The quiz screen — the per-question feedback loop. Reads the freshly-generated
+/// [QuizInstance] from the nightly session controller, shows one question at a
+/// time with a JuicyProgressBar header, grades each answer for instant feedback
+/// (FeedbackBanner slides up), and on the last question submits and routes into
+/// the full-screen completion sequence.
 class QuizPage extends ConsumerWidget {
   const QuizPage({
     super.key,
@@ -40,121 +42,155 @@ class QuizPage extends ConsumerWidget {
   }
 }
 
-class _QuizBody extends ConsumerWidget {
+class _QuizBody extends ConsumerStatefulWidget {
   const _QuizBody({required this.planId, required this.quiz});
   final String planId;
   final QuizInstance quiz;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(quizControllerProvider(quiz));
-    final controller = ref.read(quizControllerProvider(quiz).notifier);
+  ConsumerState<_QuizBody> createState() => _QuizBodyState();
+}
 
-    // When a result arrives, show the celebration once.
-    ref.listen(quizControllerProvider(quiz).select((s) => s.result),
-        (prev, next) {
-      if (prev == null && next != null) {
-        _celebrate(context, ref, next);
-      }
-    });
+class _QuizBodyState extends ConsumerState<_QuizBody> {
+  QuizInstance get quiz => widget.quiz;
+
+  QuizController get _controller =>
+      ref.read(quizControllerProvider(quiz).notifier);
+
+  Future<void> _check() async {
+    ref.read(sfxServiceProvider).play(SoundEffect.tap);
+    final verdict = await _controller.check();
+    if (verdict == null) return;
+    ref
+        .read(sfxServiceProvider)
+        .play(verdict.correct ? SoundEffect.correct : SoundEffect.wrong);
+  }
+
+  Future<void> _continue() async {
+    final state = ref.read(quizControllerProvider(quiz));
+    ref.read(sfxServiceProvider).play(SoundEffect.tap);
+    if (!state.isLast) {
+      _controller.next();
+      return;
+    }
+    // Last question: submit the whole quiz, then hand off to the completion
+    // sequence which owns the payoff + the navigate-back-and-refresh.
+    final result = await _controller.submit();
+    if (result == null || !mounted) return;
+    await ref
+        .read(analyticsProvider)
+        .quizSubmitted(result.quizId, passed: result.passed);
+    if (!mounted) return;
+    context.go(Routes.complete(widget.planId), extra: result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(quizControllerProvider(quiz));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Question ${state.currentIndex + 1} of '
-            '${quiz.questions.length}'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(value: state.progress),
-        ),
+        title: Text('Question ${state.currentIndex + 1} of ${state.total}'),
+        automaticallyImplyLeading: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+      body: SafeArea(
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.md,
+              ),
+              child: JuicyProgressBar(
+                value: state.progress,
+                segments: state.total,
+              ),
+            ),
             Expanded(
-              child: AnimatedCardSwitcher(
-                child: QuestionCard(
-                  // Key by index so the switcher animates on question change.
-                  key: ValueKey(state.currentIndex),
-                  question: state.current,
-                  selected: state.answers[state.current.id],
-                  onSelect: (v) {
-                    ref.read(sfxServiceProvider).play(SoundEffect.tap);
-                    controller.answer(state.current.id, v);
-                  },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                child: AnimatedCardSwitcher(
+                  child: QuestionCard(
+                    // Key by index so the switcher animates on question change.
+                    key: ValueKey(state.currentIndex),
+                    question: state.current,
+                    selected: state.currentAnswer,
+                    verdict: state.currentVerdict,
+                    onSelect: (v) {
+                      ref.read(sfxServiceProvider).play(SoundEffect.tap);
+                      _controller.answer(state.current.id, v);
+                    },
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            _NavRow(state: state, controller: controller),
+            _ActionArea(
+              state: state,
+              onCheck: _check,
+              onContinue: _continue,
+            ),
           ],
         ),
       ),
     );
   }
-
-  Future<void> _celebrate(
-    BuildContext context,
-    WidgetRef ref,
-    QuizResult result,
-  ) async {
-    await ref
-        .read(analyticsProvider)
-        .quizSubmitted(result.quizId, passed: result.passed);
-    // One summary result cue rather than a per-question reveal.
-    ref
-        .read(sfxServiceProvider)
-        .play(result.passed ? SoundEffect.correct : SoundEffect.wrong);
-    if (!context.mounted) return;
-    if (result.passed) {
-      // Reward beat: a haptic thump + the floating XP burst. Both are motion,
-      // so honor the OS reduce-motion preference.
-      if (!reduceMotionOf(context)) {
-        await HapticFeedback.mediumImpact();
-        if (!context.mounted) return;
-      }
-      if (result.streak.xpGained > 0) {
-        XpBurst.show(context, xp: result.streak.xpGained);
-      }
-    }
-    await showStreakCelebration(context, result: result);
-  }
 }
 
-class _NavRow extends StatelessWidget {
-  const _NavRow({required this.state, required this.controller});
+/// The bottom action area: a CHECK button while selecting, swapped for a
+/// FeedbackBanner (with a CONTINUE/FINISH button) once the answer is checked.
+class _ActionArea extends StatelessWidget {
+  const _ActionArea({
+    required this.state,
+    required this.onCheck,
+    required this.onContinue,
+  });
+
   final QuizUiState state;
-  final QuizController controller;
+  final Future<void> Function() onCheck;
+  final Future<void> Function() onContinue;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (state.currentIndex > 0)
-          TextButton(
-            onPressed: controller.back,
-            child: const Text('Back'),
-          ),
-        const Spacer(),
-        if (!state.isLast)
-          FilledButton(
-            onPressed: state.currentAnswered ? controller.next : null,
-            child: const Text('Next'),
-          )
-        else
-          FilledButton(
-            onPressed: state.currentAnswered && !state.submitting
-                ? controller.submit
-                : null,
-            child: state.submitting
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Finish'),
-          ),
-      ],
+    final verdict = state.currentVerdict;
+    if (verdict == null) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: ChunkyButton(
+          label: state.checking ? 'Checking…' : 'Check',
+          fullWidth: true,
+          onPressed: state.currentAnswered && !state.checking
+              ? () {
+                  onCheck();
+                }
+              : null,
+        ),
+      );
+    }
+
+    final isCorrect = verdict.correct;
+    final continueLabel = state.isLast ? 'Finish' : 'Continue';
+    return FeedbackBanner(
+      kind: isCorrect ? FeedbackKind.success : FeedbackKind.error,
+      title: isCorrect ? _successTitle : 'Not quite',
+      correctAnswer: isCorrect ? null : verdict.correctAnswer,
+      action: ChunkyButton(
+        label: state.submitting ? 'Finishing…' : continueLabel,
+        fullWidth: true,
+        variant: isCorrect
+            ? ChunkyButtonVariant.success
+            : ChunkyButtonVariant.danger,
+        onPressed: state.submitting
+            ? null
+            : () {
+                onContinue();
+              },
+      ),
     );
   }
+
+  static const _successTitle = 'Nicely done!';
 }

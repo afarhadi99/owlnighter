@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:api_client/api_client.dart' show ApiException;
 import 'package:app_core/app_core.dart';
-import 'package:design_system/design_system.dart' show ProgressRing;
+import 'package:design_system/design_system.dart'
+    show ChunkyButton, ProgressRing;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -148,13 +149,14 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Couldn’t open your path'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+      // The retry CTA is now a ChunkyButton (label rendered uppercase).
+      expect(find.widgetWithText(ChunkyButton, 'RETRY'), findsOneWidget);
       expect(repo.generateCalls, 1);
 
       // The server actually persisted the plan; a retry now finds it and never
       // regenerates — the exact fix for the reported bug.
       repo.plans = [_summary('p1')];
-      await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
+      await tester.tap(find.widgetWithText(ChunkyButton, 'RETRY'));
       await tester.pumpAndSettle();
 
       expect(find.text('Couldn’t open your path'), findsNothing);

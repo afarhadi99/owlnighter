@@ -9,10 +9,9 @@ import '../../services/sfx/sound_effect.dart';
 import '../../services/sfx/sound_settings.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/util/env.dart';
-import '../notifications/notifications_page.dart';
 
-/// Settings tab: notifications, account, and (in debug builds) the admin/debug
-/// console entry point.
+/// Settings tab: audio, recap voice, reminders (coming soon), account, and — in
+/// debug builds — a Developer section with the admin/debug console.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -22,21 +21,6 @@ class SettingsPage extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          ListTile(
-            leading: const Icon(Icons.notifications_rounded),
-            title: const Text('Notifications'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const NotificationsPage(),
-              ),
-            ),
-          ),
-          const ListTile(
-            leading: Icon(Icons.record_voice_over_rounded),
-            title: Text('Recap voice'),
-            subtitle: Text('aura-2-thalia-en'),
-          ),
           SwitchListTile(
             secondary: const Icon(Icons.music_note_rounded),
             title: const Text('Sound effects'),
@@ -48,13 +32,19 @@ class SettingsPage extends ConsumerWidget {
               if (value) ref.read(sfxServiceProvider).play(SoundEffect.tap);
             },
           ),
-          if (AppEnv.enableAdminDebug)
-            ListTile(
-              leading: const Icon(Icons.bug_report_rounded),
-              title: const Text('Admin / debug'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => context.push(Routes.adminDebug),
-            ),
+          const ListTile(
+            leading: Icon(Icons.record_voice_over_rounded),
+            title: Text('Recap voice'),
+            subtitle: Text('Thalia — English (US)'),
+          ),
+          // Reminders aren't wired yet — an explicitly disabled row so nothing
+          // dead-ends (replaces the old chevron that went to an empty page).
+          const ListTile(
+            enabled: false,
+            leading: Icon(Icons.notifications_rounded),
+            title: Text('Reminders'),
+            subtitle: Text('Coming soon'),
+          ),
           const Divider(),
           ListTile(
             leading:
@@ -62,6 +52,24 @@ class SettingsPage extends ConsumerWidget {
             title: const Text('Sign out'),
             onTap: () => ref.read(authRepositoryProvider).signOut(),
           ),
+          if (AppEnv.enableAdminDebug) ...[
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.xs,
+              ),
+              child: Text('Developer', style: AppType.caption),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report_rounded),
+              title: const Text('Admin / debug'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push(Routes.adminDebug),
+            ),
+          ],
         ],
       ),
     );

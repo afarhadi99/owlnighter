@@ -1,3 +1,4 @@
+import 'package:app_core/app_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,6 +7,7 @@ import '../features/auth/auth_page.dart';
 import '../features/library/library_page.dart';
 import '../features/nightly_session/nightly_session_page.dart';
 import '../features/onboarding/onboarding_page.dart';
+import '../features/quiz/completion_page.dart';
 import '../features/quiz/quiz_page.dart';
 import '../features/reading_path/plan_launcher_page.dart';
 import '../features/reading_path/reading_path_page.dart';
@@ -27,10 +29,17 @@ abstract final class Routes {
   /// Opens a book with get-or-create semantics (see [PlanLauncherPage]).
   static String launch(String bookId) => '/book/$bookId/launch';
   static String plan(String planId) => '/plan/$planId';
+
+  /// The path with the `celebrate` flag set, so it plays the unlock cue when a
+  /// newly-available node appears after finishing a night.
+  static String planCelebrate(String planId) => '/plan/$planId?celebrate=1';
   static String step(String planId, String stepId) =>
       '/plan/$planId/step/$stepId';
   static String quiz(String planId, String stepId, String quizId) =>
       '/plan/$planId/step/$stepId/quiz/$quizId';
+
+  /// The full-screen completion sequence (pass the [QuizResult] via `extra`).
+  static String complete(String planId) => '/plan/$planId/complete';
 }
 
 /// The app router. go_router is the single deep-link entry point: universal
@@ -93,8 +102,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/plan/:planId',
         builder: (_, state) => ReadingPathPage(
           planId: state.pathParameters['planId']!,
+          justCompleted: state.uri.queryParameters['celebrate'] == '1',
         ),
         routes: [
+          // The full-screen completion sequence after finishing a night.
+          GoRoute(
+            path: 'complete',
+            builder: (_, state) => CompletionPage(
+              planId: state.pathParameters['planId']!,
+              result: state.extra! as QuizResult,
+            ),
+          ),
           // Deep-link target: readingpath://plan/{planId}/step/{stepId}
           GoRoute(
             path: 'step/:stepId',
