@@ -217,6 +217,42 @@ mobile pipeline, then personally re-drove the exact broken repro on device:
   Firebase project on this machine) — local notifications are fully real
   and verified.
 
+### Round 9 — mood-reactive owl faces + header audit (2026-07-12)
+
+User asked for the owl icon to be dynamic (angry if the lesson isn't done)
+and for a full-app pass to catch any "weird headers." Ran a 3-agent workflow
+(design-system + Android in parallel, mobile wiring after) and personally
+audited all 12 page files' headers before dispatching, then reviewed every
+diff and re-verified on device:
+
+- **design_system:** two additive `OwlState` values — `worried` (concerned
+  eyebrows, mild bob) and `angry` (furrowed frown, squinted glare, a small
+  tense shake) — both collapsing to a static pose under reduced motion.
+  design_system: 67 tests (+4). mobile: 66 tests (+6, incl. a widget test
+  asserting the angry mood banner renders `OwlState.angry`).
+- **Android widget:** the home-screen widget's owl glyph now changes face to
+  match its existing 4-state model — happy (done, blush cheeks), neutral
+  (day), worried (evening), angry (night, streak about to die) — via three
+  new vector drawables wired into `ReadingWidgetProvider.applyState`.
+- **mobile:** new `owlMoodFor()` helper reuses the widget's own day/evening/
+  night bucketing so the in-app owl and the widget owl always agree; wired
+  into a new mood banner on the Streaks tab. Header audit found one real bug
+  — `plan_launcher_page.dart` (hit every time a book is opened) was still a
+  bare `Scaffold+AppBar`, flashing the wrong light-Material theme instead of
+  `NightScaffold` — fixed. Also deleted `notifications_page.dart`, a dead,
+  unrouted screen with the same wrong-theme AppBar, superseded by the real
+  reminder toggle in Settings.
+- **VERIFIED ON DEVICE, this round:** rebuilt and installed the APK; the
+  Streaks tab's mood banner shows the cheerful owl + "Nicely done tonight!"
+  after finishing a reading; the home-screen widget's owl now visibly shows
+  blush cheeks in its done state (zoomed screenshot); and forcing the
+  `plan_launcher_page.dart` error state live (searched/added a new book) now
+  renders in the correct night theme with a working back button — before
+  this fix it would have flashed the old bare white AppBar. The angry/
+  worried states are exercised by dedicated widget tests (asserting the
+  exact `OwlState`) since reaching them live would require rooting the
+  emulator to move its clock past midnight.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
@@ -319,3 +355,6 @@ _Updated as we go. Full detail in `git log`._
 - `feat(admin): notifications send-test-push + honest states on remaining pages`
 - `feat(design-system): NightScaffold shell + owl idle polish`
 - `feat(mobile): back-nav fix, real notifications, home-screen widget`
+- `feat(design-system): worried + angry owl mood states`
+- `feat(mobile,android): expressive owl faces on the home-screen widget`
+- `feat(mobile): mood-aware Streaks owl + fix a stray un-themed header`
