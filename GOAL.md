@@ -147,6 +147,34 @@ sonnet (admin), then verified on device:
 - Known cosmetic follow-up: NightSky on the nightly screen covers only the top
   content area (bottom half plain) — extend the backdrop to full height.
 
+### Round 7 — user audit: "far from Duolingo" (2026-07-12)
+
+User audit (on-device, every screen) called out real gaps: cheap synthesized
+sounds, no per-question feedback (batch-only quiz), the celebration sheet
+**dead-ended** instead of returning to the path, streak tab hardcoded to 0,
+flat non-tactile UI, dead Settings rows, bare add-book search results.
+Fanned out sonnet (backend) + opus (design-system → mobile pipeline), fixed
+every finding, verified **on device end-to-end**:
+
+- **Backend:** `GET /v1/me/stats` (real streak/XP/7-day week) + `POST
+  /v1/quiz/:id/check` (instant per-question verdict, key stays server-side;
+  final `submit` unchanged). 74/74 tests, openapi 21 paths.
+- **design_system "juice kit":** ChunkyButton (3D pressed-edge), PathNode v2
+  (glow + bobbing START callout + green-check completed + amber in-progress
+  arc), FeedbackBanner, JuicyProgressBar, XpCounter, StatCard. 54 tests.
+- **mobile:** sound synthesis rewritten (detuned ensembles, harmonic-partial
+  decay physics, lowpass, echo, saturation — still fully original/synthesized);
+  quiz is now select→CHECK→banner+SFX→CONTINUE per question; a real full-screen
+  **CompletionPage** (confetti/owl/XP roll-up/stat cards) whose CONTINUE
+  **returns to Library and refreshes the plan**; streak tab hydrated; nightly
+  sky full-height; Settings/add-book/library polish. 42 mobile tests (dart
+  total **137**).
+- **VERIFIED ON DEVICE, full loop, this round:** tapped an available path node
+  → 4 questions each with live CHECK → green/red FeedbackBanner → CONTINUE →
+  **CompletionPage** (100% accuracy, +20 XP, streak 1) → CONTINUE → **Library**
+  → re-opened path → **finished node green, next node glowing START**. The
+  "doesn't go anywhere" complaint is closed.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
