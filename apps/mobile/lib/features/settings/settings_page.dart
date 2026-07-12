@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../services/api/auth_repository_impl.dart';
+import '../../services/sfx/sfx_service.dart';
+import '../../services/sfx/sound_effect.dart';
+import '../../services/sfx/sound_settings.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/util/env.dart';
 import '../notifications/notifications_page.dart';
@@ -33,6 +36,17 @@ class SettingsPage extends ConsumerWidget {
             leading: Icon(Icons.record_voice_over_rounded),
             title: Text('Recap voice'),
             subtitle: Text('aura-2-thalia-en'),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.music_note_rounded),
+            title: const Text('Sound effects'),
+            subtitle: const Text('Taps, chimes, and celebration sounds'),
+            value: ref.watch(soundEnabledProvider),
+            onChanged: (value) {
+              ref.read(soundEnabledProvider.notifier).setEnabled(value);
+              // Play a confirming tick when turning sound on.
+              if (value) ref.read(sfxServiceProvider).play(SoundEffect.tap);
+            },
           ),
           if (AppEnv.enableAdminDebug)
             ListTile(

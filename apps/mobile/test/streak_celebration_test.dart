@@ -1,7 +1,11 @@
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:owlnighter/features/streaks/streak_celebration.dart';
+import 'package:owlnighter/services/sfx/sound_effect.dart';
+
+import 'support/fake_sfx.dart';
 
 /// The celebration is the payoff beat of the core loop. This drives the real
 /// `showStreakCelebration` bottom sheet and asserts the streak + XP payoff
@@ -21,19 +25,22 @@ QuizResult _result({required bool passed}) => QuizResult(
       ),
     );
 
-Widget _host(QuizResult result) => MaterialApp(
-      // Force reduced motion above the Navigator so the modal route inherits it
-      // and StreakFlame renders its static placeholder (no Rive asset needed).
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(disableAnimations: true),
-        child: child!,
-      ),
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => Center(
-            child: ElevatedButton(
-              onPressed: () => showStreakCelebration(context, result: result),
-              child: const Text('open'),
+Widget _host(QuizResult result, {FakeSfxService? sfx}) => ProviderScope(
+      overrides: [overrideSfxWith(sfx ?? FakeSfxService())],
+      child: MaterialApp(
+        // Force reduced motion above the Navigator so the modal route inherits
+        // it and the art (confetti/flame/owl) render static placeholders.
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: ElevatedButton(
+                onPressed: () => showStreakCelebration(context, result: result),
+                child: const Text('open'),
+              ),
             ),
           ),
         ),
@@ -73,6 +80,28 @@ void main() {
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Done'), findsNothing);
+    });
+
+    testWidgets('passing fires the fanfare then the streak cue',
+        (tester) async {
+      final sfx = FakeSfxService();
+      await tester.pumpWidget(_host(_result(passed: true), sfx: sfx));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      // fanfare on open, streak after the ~450ms timer, tap on dismiss.
+      expect(sfx.played, contains(SoundEffect.fanfare));
+      expect(sfx.played, contains(SoundEffect.streak));
+    });
+
+    testWidgets('failing stays quiet (no fanfare/streak)', (tester) async {
+      final sfx = FakeSfxService();
+      await tester.pumpWidget(_host(_result(passed: false), sfx: sfx));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(sfx.played, isNot(contains(SoundEffect.fanfare)));
+      expect(sfx.played, isNot(contains(SoundEffect.streak)));
     });
   });
 }

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/analytics/analytics.dart';
+import '../../services/sfx/sfx_service.dart';
+import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../nightly_session/nightly_session_controller.dart';
 import '../streaks/streak_celebration.dart';
@@ -76,7 +78,10 @@ class _QuizBody extends ConsumerWidget {
                   key: ValueKey(state.currentIndex),
                   question: state.current,
                   selected: state.answers[state.current.id],
-                  onSelect: (v) => controller.answer(state.current.id, v),
+                  onSelect: (v) {
+                    ref.read(sfxServiceProvider).play(SoundEffect.tap);
+                    controller.answer(state.current.id, v);
+                  },
                 ),
               ),
             ),
@@ -96,6 +101,10 @@ class _QuizBody extends ConsumerWidget {
     await ref
         .read(analyticsProvider)
         .quizSubmitted(result.quizId, passed: result.passed);
+    // One summary result cue rather than a per-question reveal.
+    ref
+        .read(sfxServiceProvider)
+        .play(result.passed ? SoundEffect.correct : SoundEffect.wrong);
     if (!context.mounted) return;
     if (result.passed) {
       // Reward beat: a haptic thump + the floating XP burst. Both are motion,

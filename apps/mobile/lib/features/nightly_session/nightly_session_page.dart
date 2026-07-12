@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/router.dart';
 import '../../services/analytics/analytics.dart';
 import '../../services/api/repository_providers.dart';
+import '../../services/sfx/sfx_service.dart';
+import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/quiz_mode_badge.dart';
@@ -47,17 +49,35 @@ class _NightlySessionPageState extends ConsumerState<NightlySessionPage> {
   Widget build(BuildContext context) {
     final stepAsync = ref.watch(nightlyStepProvider(widget.stepId));
     return Scaffold(
-      appBar: AppBar(title: const Text("Tonight's reading")),
-      body: AsyncValueView<PlanStep?>(
-        value: stepAsync,
-        onRetry: () => ref.invalidate(nightlyStepProvider(widget.stepId)),
-        data: (step) => step == null
-            ? const _MissingStep()
-            : _SessionBody(
-                planId: widget.planId,
-                stepId: widget.stepId,
-                step: step,
-              ),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text("Tonight's reading"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Stack(
+        children: [
+          // A subtler night sky (fewer stars, smaller moon) so the reading copy
+          // stays legible.
+          const Positioned.fill(
+            child: NightSky(
+              starCount: 24,
+              moonRadius: 24,
+              moonAlignment: Alignment(0.78, -0.82),
+            ),
+          ),
+          AsyncValueView<PlanStep?>(
+            value: stepAsync,
+            onRetry: () => ref.invalidate(nightlyStepProvider(widget.stepId)),
+            data: (step) => step == null
+                ? const _MissingStep()
+                : _SessionBody(
+                    planId: widget.planId,
+                    stepId: widget.stepId,
+                    step: step,
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -98,7 +118,15 @@ class _SessionBody extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(step.title, style: AppType.title),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // A sleepy owl sets the bedtime mood beside tonight's title.
+              const OwlMascot(state: OwlState.sleepy, size: 56),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: Text(step.title, style: AppType.title)),
+            ],
+          ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
@@ -148,6 +176,7 @@ class _SessionBody extends ConsumerWidget {
   }
 
   Future<void> _startQuiz(BuildContext context, WidgetRef ref) async {
+    ref.read(sfxServiceProvider).play(SoundEffect.tap);
     await ref.read(analyticsProvider).sessionStarted(stepId);
     try {
       final quiz =

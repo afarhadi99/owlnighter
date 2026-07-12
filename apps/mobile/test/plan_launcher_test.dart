@@ -10,6 +10,8 @@ import 'package:owlnighter/features/reading_path/plan_launcher_controller.dart';
 import 'package:owlnighter/features/reading_path/plan_launcher_page.dart';
 import 'package:owlnighter/services/api/repository_providers.dart';
 
+import 'support/fake_sfx.dart';
+
 /// Builds a minimal full plan for getPlan / generate results.
 ReadingPlan _plan(String planId, {String bookId = 'b1'}) => ReadingPlan(
       planId: planId,
@@ -98,8 +100,20 @@ class _FakePlanRepo implements PlanRepository {
 }
 
 Widget _host(PlanRepository repo, {String bookId = 'b1'}) => ProviderScope(
-      overrides: [planRepositoryProvider.overrideWithValue(repo)],
-      child: MaterialApp(home: PlanLauncherPage(bookId: bookId)),
+      overrides: [
+        planRepositoryProvider.overrideWithValue(repo),
+        // The reuse path renders ReadingPathPage; give it a silent SFX service
+        // and reduced motion so its NightSky/PathScenery tickers don't hang
+        // pumpAndSettle.
+        overrideSfxWith(FakeSfxService()),
+      ],
+      child: MaterialApp(
+        home: PlanLauncherPage(bookId: bookId),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
+      ),
     );
 
 ApiException _timeout() => ApiException(

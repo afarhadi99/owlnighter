@@ -33,6 +33,7 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   connectivity_plus: ^6.0.5
   package_info_plus: ^8.0.2
+  shared_preferences: ^2.3.2
 
   # Push + local notifications.
   firebase_messaging: ^15.1.0
@@ -60,6 +61,8 @@ flutter:
     # Bundled silent recap used as the offline fallback source so the nightly
     # recap player always has something to play (see AudioController).
     - assets/audio/
+    # Synthesized UI sound effects (see tools/gen_sfx.mjs + SfxService).
+    - assets/audio/sfx/
   # assets:
   #   - assets/rive/
   #   - assets/lottie/

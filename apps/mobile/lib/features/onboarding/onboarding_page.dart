@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
+import '../../services/sfx/sfx_service.dart';
+import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
 
 /// Lightweight onboarding: a few value-prop panes → into the library. Kept
 /// simple; real onboarding would capture goal, pacing, and bedtime to seed the
 /// first plan.
-class OnboardingPage extends StatefulWidget {
+class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
   @override
-  State<OnboardingPage> createState() => _OnboardingPageState();
+  ConsumerState<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
+class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   final _controller = PageController();
   int _page = 0;
 
@@ -50,6 +53,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: RewardButton(
                 onTap: () {
+                  ref.read(sfxServiceProvider).play(SoundEffect.tap);
                   if (_page < _panes.length - 1) {
                     _controller.nextPage(
                       duration: AppMotion.base,

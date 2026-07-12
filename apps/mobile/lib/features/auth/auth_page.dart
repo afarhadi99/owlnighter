@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/sfx/sfx_service.dart';
+import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import 'auth_controller.dart';
 
@@ -75,10 +77,13 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 RewardButton(
                   onTap: state.isLoading
                       ? () {}
-                      : () => ref.read(authControllerProvider.notifier).signIn(
-                            email: _email.text,
-                            password: _password.text,
-                          ),
+                      : () {
+                          ref.read(sfxServiceProvider).play(SoundEffect.tap);
+                          ref.read(authControllerProvider.notifier).signIn(
+                                email: _email.text,
+                                password: _password.text,
+                              );
+                        },
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(vertical: AppSpacing.md),

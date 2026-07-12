@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:app_core/app_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/sfx/sfx_service.dart';
+import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
 
-/// Shows the end-of-loop celebration: the streak flame mascot, the new streak
-/// count, and XP gained. This is the payoff beat of session -> quiz -> streak.
+/// Shows the end-of-loop celebration: a cheering owl over a streak flame,
+/// confetti, the new streak count, and XP gained. This is the payoff beat of
+/// session -> quiz -> streak. On a passing result it fires the fanfare + streak
+/// sound cues; motion (confetti, flame, owl) all honor reduced motion.
 Future<void> showStreakCelebration(
   BuildContext context, {
   required QuizResult result,
@@ -20,15 +27,45 @@ Future<void> showStreakCelebration(
   );
 }
 
-class _CelebrationSheet extends StatelessWidget {
+class _CelebrationSheet extends ConsumerStatefulWidget {
   const _CelebrationSheet({required this.result});
   final QuizResult result;
 
   @override
+  ConsumerState<_CelebrationSheet> createState() => _CelebrationSheetState();
+}
+
+class _CelebrationSheetState extends ConsumerState<_CelebrationSheet> {
+  Timer? _streakCue;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.result.passed) {
+      final sfx = ref.read(sfxServiceProvider);
+      // Fanfare lands first; the warm streak whoosh follows a beat later.
+      sfx.play(SoundEffect.fanfare);
+      _streakCue = Timer(const Duration(milliseconds: 450), () {
+        sfx.play(SoundEffect.streak);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _streakCue?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final result = widget.result;
     final streak = result.streak;
     final passed = result.passed;
-    return Padding(
+    // Map the streak length onto the flame's height/liveliness (caps at 2 wks).
+    final intensity = (streak.currentStreak / 14.0).clamp(0.4, 1.0);
+
+    final sheet = Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         AppSpacing.xl,
@@ -38,7 +75,30 @@ class _CelebrationSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          StreakFlame(streakCount: streak.currentStreak, size: 120),
+          SizedBox(
+            height: 148,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (passed)
+                  Positioned(
+                    bottom: 0,
+                    child: FlameFlicker(
+                      intensity: intensity,
+                      size: 96,
+                      semanticLabel: '${streak.currentStreak}-day streak flame',
+                    ),
+                  ),
+                Align(
+                  alignment: passed ? Alignment.topCenter : Alignment.center,
+                  child: OwlMascot(
+                    state: passed ? OwlState.cheer : OwlState.idle,
+                    size: 104,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             passed ? 'Nice reading tonight!' : 'Good effort',
@@ -72,7 +132,10 @@ class _CelebrationSheet extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: RewardButton(
-              onTap: () => Navigator.of(context).pop(),
+              onTap: () {
+                ref.read(sfxServiceProvider).play(SoundEffect.tap);
+                Navigator.of(context).pop();
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 alignment: Alignment.center,
@@ -89,6 +152,20 @@ class _CelebrationSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (!passed) return sheet;
+
+    // Celebrate over the sheet: confetti rains from the top, ignoring taps.
+    return Stack(
+      children: [
+        sheet,
+        const Positioned.fill(
+          child: IgnorePointer(
+            child: ConfettiBurst(autoPlay: true),
+          ),
+        ),
+      ],
     );
   }
 }
