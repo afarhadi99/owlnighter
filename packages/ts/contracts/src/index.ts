@@ -5,5 +5,6 @@ export * from "./quiz.js";
 export * from "./grounding.js";
 export * from "./admin.js";
 export * from "./misc.js";
+export * from "./stats.js";
 export * from "./endpoints.js";
 export * from "./openapi.js";

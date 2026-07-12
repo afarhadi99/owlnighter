@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
+  type QuizCheckRequest,
+  type QuizCheckResponse,
   type QuizGenerateRequest,
   type QuizInstance,
   type QuizSubmitRequest,
@@ -8,7 +10,7 @@ import {
 import type { Deps } from "../deps.js";
 import { requireUser } from "../plugins/auth.js";
 import { badRequest } from "../plugins/errors.js";
-import { generateStepQuiz, submitQuiz } from "../services/quiz.js";
+import { checkQuizAnswer, generateStepQuiz, submitQuiz } from "../services/quiz.js";
 import { register } from "./helpers.js";
 
 export function registerQuizRoutes(app: FastifyInstance, deps: Deps): void {
@@ -17,6 +19,13 @@ export function registerQuizRoutes(app: FastifyInstance, deps: Deps): void {
     const stepId = params["id"];
     if (!stepId) throw badRequest("Missing step id.");
     return generateStepQuiz(deps, user, stepId, body);
+  });
+
+  register<QuizCheckRequest, QuizCheckResponse>(app, deps, "checkQuizAnswer", async ({ req, body, params }) => {
+    const user = requireUser(req);
+    const quizId = params["id"];
+    if (!quizId) throw badRequest("Missing quiz id.");
+    return checkQuizAnswer(deps, user, quizId, body);
   });
 
   register<QuizSubmitRequest, QuizSubmitResponse>(app, deps, "submitQuiz", async ({ req, body, params }) => {

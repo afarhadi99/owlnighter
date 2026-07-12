@@ -3,6 +3,8 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
 import { contentHash } from "@owlnighter/shared";
 import {
+  type QuizCheckRequest,
+  type QuizCheckResponse,
   type QuizGenerateRequest,
   type QuizInstance,
   type QuizMode,
@@ -234,10 +236,38 @@ async function loadQuizInstance(deps: Deps, inst: typeof schema.quizInstances.$i
   };
 }
 
-/** Case/space-insensitive answer comparison. */
-function answersMatch(given: string, correct: string): boolean {
+/** Case/space-insensitive answer comparison. Exported for the check endpoint. */
+export function answersMatch(given: string, correct: string): boolean {
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
   return norm(given) === norm(correct);
+}
+
+/**
+ * Instant per-question feedback (Duolingo-style). Looks up the question by id,
+ * verifying it belongs to a quiz instance owned by the caller, and compares
+ * the given answer with the server-side answer key. Unlike `submitQuiz`, this
+ * never records an attempt and never touches the streak/XP ledger.
+ */
+export async function checkQuizAnswer(
+  deps: Deps,
+  user: AuthUser,
+  quizId: string,
+  req: QuizCheckRequest,
+): Promise<QuizCheckResponse> {
+  const instRows = await deps.db.select().from(schema.quizInstances).where(eq(schema.quizInstances.id, quizId)).limit(1);
+  const inst = instRows[0];
+  if (!inst || inst.userId !== user.id) throw notFound("Quiz not found.");
+
+  const qRows = await deps.db.select().from(schema.quizQuestions).where(eq(schema.quizQuestions.quizId, quizId));
+  const question = qRows.find((q) => q.id === req.questionId);
+  if (!question) throw notFound("Question not found.");
+
+  const correct = answersMatch(req.answer, question.correctAnswer);
+  return {
+    correct,
+    correctAnswer: question.correctAnswer,
+    ...(question.explanation ? { explanation: question.explanation } : {}),
+  };
 }
 
 export async function submitQuiz(deps: Deps, user: AuthUser, quizId: string, req: QuizSubmitRequest): Promise<QuizSubmitResponse> {

@@ -93,6 +93,86 @@ test("POST /v1/quiz/:id/submit scores answers, passes, and advances the streak",
   }
 });
 
+test("POST /v1/quiz/:id/check reports correct with the answer key and explanation", async () => {
+  const { schema } = await import("@owlnighter/db");
+  const byTable = tableRows(
+    [schema.profiles, []],
+    [schema.quizInstances, [{ id: QUIZ_ID, userId: DEV_USER_ID, stepId: STEP_ID }]],
+    [schema.quizQuestions, [{ id: Q1, quizId: QUIZ_ID, ordinal: 0, correctAnswer: "a", explanation: "because" }]],
+  );
+  const app = await buildApp(fakeDeps({ byTable }));
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: `/v1/quiz/${QUIZ_ID}/check`,
+      headers: DEV_BEARER,
+      payload: { questionId: Q1, answer: " A " },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = res.json() as { correct: boolean; correctAnswer: string; explanation?: string };
+    assert.equal(body.correct, true);
+    assert.equal(body.correctAnswer, "a");
+    assert.equal(body.explanation, "because");
+  } finally {
+    await app.close();
+  }
+});
+
+test("POST /v1/quiz/:id/check reports incorrect without recording an attempt", async () => {
+  const { schema } = await import("@owlnighter/db");
+  const byTable = tableRows(
+    [schema.profiles, []],
+    [schema.quizInstances, [{ id: QUIZ_ID, userId: DEV_USER_ID, stepId: STEP_ID }]],
+    [schema.quizQuestions, [{ id: Q1, quizId: QUIZ_ID, ordinal: 0, correctAnswer: "a", explanation: null }]],
+  );
+  const app = await buildApp(fakeDeps({ byTable }));
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: `/v1/quiz/${QUIZ_ID}/check`,
+      headers: DEV_BEARER,
+      payload: { questionId: Q1, answer: "b" },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = res.json() as { correct: boolean; correctAnswer: string; explanation?: string };
+    assert.equal(body.correct, false);
+    assert.equal(body.correctAnswer, "a");
+    assert.equal(body.explanation, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("POST /v1/quiz/:id/check is 404 for a quiz owned by another user", async () => {
+  const { schema } = await import("@owlnighter/db");
+  const byTable = tableRows(
+    [schema.profiles, []],
+    [schema.quizInstances, [{ id: QUIZ_ID, userId: "77777777-7777-4777-8777-777777777777", stepId: STEP_ID }]],
+  );
+  const app = await buildApp(fakeDeps({ byTable }));
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: `/v1/quiz/${QUIZ_ID}/check`,
+      headers: DEV_BEARER,
+      payload: { questionId: Q1, answer: "a" },
+    });
+    assert.equal(res.statusCode, 404);
+  } finally {
+    await app.close();
+  }
+});
+
+test("POST /v1/quiz/:id/check requires auth (401)", async () => {
+  const app = await buildApp(fakeDeps());
+  try {
+    const res = await app.inject({ method: "POST", url: `/v1/quiz/${QUIZ_ID}/check`, payload: { questionId: Q1, answer: "a" } });
+    assert.equal(res.statusCode, 401);
+  } finally {
+    await app.close();
+  }
+});
+
 test("POST /v1/quiz/:id/submit is 404 for a quiz owned by another user", async () => {
   const { schema } = await import("@owlnighter/db");
   const byTable = tableRows(

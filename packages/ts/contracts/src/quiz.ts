@@ -68,3 +68,19 @@ export const QuizSubmitResponse = z.object({
   }),
 });
 export type QuizSubmitResponse = z.infer<typeof QuizSubmitResponse>;
+
+// ---- POST /v1/quiz/:id/check ----
+/** Instant per-question feedback (Duolingo-style) — does NOT record an attempt
+ * or affect the streak. Only the final `submitQuiz` does that. */
+export const QuizCheckRequest = z.object({
+  questionId: z.string(),
+  answer: z.string(),
+});
+export type QuizCheckRequest = z.infer<typeof QuizCheckRequest>;
+
+export const QuizCheckResponse = z.object({
+  correct: z.boolean(),
+  correctAnswer: z.string(),
+  explanation: z.string().optional(),
+});
+export type QuizCheckResponse = z.infer<typeof QuizCheckResponse>;

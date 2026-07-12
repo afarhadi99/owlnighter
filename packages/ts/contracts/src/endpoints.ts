@@ -6,7 +6,14 @@ import {
   BookSearchResponse,
 } from "./book.js";
 import { ListPlansResponse, PlanGenerateRequest, PlanResponse } from "./plan.js";
-import { QuizGenerateRequest, QuizInstance, QuizSubmitRequest, QuizSubmitResponse } from "./quiz.js";
+import {
+  QuizCheckRequest,
+  QuizCheckResponse,
+  QuizGenerateRequest,
+  QuizInstance,
+  QuizSubmitRequest,
+  QuizSubmitResponse,
+} from "./quiz.js";
 import { AdminGroundingResponse, AdminOverrideRequest } from "./grounding.js";
 import {
   AdminMetricsResponse,
@@ -27,6 +34,7 @@ import {
   TtsGenerateRequest,
   TtsGenerateResponse,
 } from "./misc.js";
+import { MyStatsResponse } from "./stats.js";
 
 export type HttpMethod = "get" | "post" | "put" | "delete";
 
@@ -88,6 +96,15 @@ export const ENDPOINTS: readonly EndpointDef[] = [
   },
   {
     method: "get",
+    path: "/v1/me/stats",
+    operationId: "getMyStats",
+    summary: "Streaks, XP, and the trailing 7-day reading window for the caller.",
+    tag: "stats",
+    auth: "user",
+    response: MyStatsResponse,
+  },
+  {
+    method: "get",
     path: "/v1/plans",
     operationId: "listPlans",
     summary: "List the caller's plans (newest planVersion first). Filter with `?bookId=`.",
@@ -132,6 +149,16 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     auth: "user",
     request: QuizGenerateRequest,
     response: QuizInstance,
+  },
+  {
+    method: "post",
+    path: "/v1/quiz/:id/check",
+    operationId: "checkQuizAnswer",
+    summary: "Instant per-question feedback (does not record an attempt or affect streak).",
+    tag: "quiz",
+    auth: "user",
+    request: QuizCheckRequest,
+    response: QuizCheckResponse,
   },
   {
     method: "post",
