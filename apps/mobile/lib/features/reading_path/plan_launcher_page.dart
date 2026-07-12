@@ -25,8 +25,9 @@ class PlanLauncherPage extends ConsumerWidget {
       return ReadingPathPage(planId: state.planId!);
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Your reading path')),
+    return NightScaffold(
+      title: 'Your reading path',
+      showSky: false,
       body: state.isError
           ? _LaunchError(
               error: state.error!,

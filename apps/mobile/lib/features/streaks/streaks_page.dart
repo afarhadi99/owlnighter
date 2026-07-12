@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/api/extras_api.dart';
+import '../../shared/mood/owl_mood.dart';
 import '../../shared/theme/theme_re_exports.dart';
 import '../../shared/widgets/async_value_view.dart';
 
@@ -14,7 +15,11 @@ final myStatsProvider = FutureProvider.autoDispose<MyStats>((ref) async {
 /// The streak tab: a big flame + current streak, longest / total-XP stat cards,
 /// and a 7-day week row. Our own night-sky layout in the game-app pattern.
 class StreaksPage extends ConsumerWidget {
-  const StreaksPage({super.key});
+  const StreaksPage({super.key, this.now});
+
+  /// Optional clock override for tests; defaults to the real wall clock at
+  /// the point of use.
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,19 +30,24 @@ class StreaksPage extends ConsumerWidget {
       body: AsyncValueView<MyStats>(
         value: stats,
         onRetry: () => ref.invalidate(myStatsProvider),
-        data: (s) => _StatsBody(stats: s),
+        data: (s) => _StatsBody(stats: s, now: now),
       ),
     );
   }
 }
 
 class _StatsBody extends StatelessWidget {
-  const _StatsBody({required this.stats});
+  const _StatsBody({required this.stats, this.now});
   final MyStats stats;
+
+  /// Optional clock override for tests; defaults to the real wall clock at
+  /// the point of use (mirrors [OwlMascot]'s injectable `random`).
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
     final intensity = (stats.currentStreak / 14.0).clamp(0.4, 1.0);
+    final hasReadToday = stats.week.isNotEmpty && stats.week.last.read;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -66,6 +76,8 @@ class _StatsBody extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
+          _MoodBanner(hasReadToday: hasReadToday, now: now ?? DateTime.now()),
+          const SizedBox(height: AppSpacing.xl),
           Row(
             children: [
               Expanded(
@@ -92,6 +104,42 @@ class _StatsBody extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _WeekRow(week: stats.week),
         ],
+      ),
+    );
+  }
+}
+
+/// A compact card pairing the mood-reflecting owl with a short nudge/praise
+/// message, so the streak tab reflects whether tonight's reading is done yet.
+class _MoodBanner extends StatelessWidget {
+  const _MoodBanner({required this.hasReadToday, required this.now});
+
+  final bool hasReadToday;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final mood = owlMoodFor(hasReadToday: hasReadToday, now: now);
+    final message = switch (mood) {
+      OwlState.cheer => 'Nicely done tonight! Keep the streak alive.',
+      OwlState.idle => 'Plenty of time — tonight’s reading is waiting.',
+      OwlState.worried => 'Getting late — don’t forget tonight’s reading.',
+      OwlState.angry =>
+        'You still haven’t read tonight! Your streak is on the line.',
+      _ => '',
+    };
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            OwlMascot(state: mood, size: 64),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(message, style: AppType.body),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:design_system/design_system.dart' show OwlMascot, OwlState;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,15 @@ MyStats _stats() => MyStats(
       week: fakeWeek(readDays: 3),
     );
 
-Widget _host(StatsApi api) => ProviderScope(
+MyStats _statsNotReadToday() => MyStats(
+      currentStreak: 5,
+      longestStreak: 12,
+      totalXp: 340,
+      xpToday: 0,
+      week: fakeWeek(readDays: 0),
+    );
+
+Widget _host(StatsApi api, {DateTime? now}) => ProviderScope(
       overrides: [statsApiProvider.overrideWithValue(api)],
       child: MaterialApp(
         // Reduced motion so the NightSky/flame tickers stop for pumpAndSettle.
@@ -22,7 +31,7 @@ Widget _host(StatsApi api) => ProviderScope(
           data: MediaQuery.of(context).copyWith(disableAnimations: true),
           child: child!,
         ),
-        home: const StreaksPage(),
+        home: StreaksPage(now: now),
       ),
     );
 
@@ -49,6 +58,28 @@ void main() {
 
       // 3 of 7 days read → 3 check marks in the week row.
       expect(find.byIcon(Icons.check_rounded), findsNWidgets(3));
+    });
+
+    testWidgets(
+        'not read today + night hour shows the angry mood banner',
+        (tester) async {
+      final api = FakeStatsApi(_statsNotReadToday());
+      final nightNow = DateTime(2026, 1, 1, 22, 0); // well inside 21:00-05:00
+      await tester.pumpWidget(_host(api, now: nightNow));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'You still haven’t read tonight! Your streak is on the line.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is OwlMascot && w.state == OwlState.angry,
+        ),
+        findsOneWidget,
+      );
     });
   });
 }
