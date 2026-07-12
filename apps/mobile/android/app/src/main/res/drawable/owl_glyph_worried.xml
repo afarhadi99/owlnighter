@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Worried variant of owl_glyph: same silhouette, with concerned eyebrows (inner end raised, outer end lowered) for the evening not-yet-read state. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="52dp"
+    android:height="52dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Ear tufts. -->
+    <path
+        android:fillColor="#7B89FF"
+        android:pathData="M14,7 L20,15 L11,15 Z" />
+    <path
+        android:fillColor="#7B89FF"
+        android:pathData="M34,7 L37,15 L28,15 Z" />
+
+    <!-- Head + body: one rounded blob. -->
+    <path
+        android:fillColor="#7B89FF"
+        android:pathData="M24,9 C13,9 8,17 8,26 C8,35 14,42 24,42 C34,42 40,35 40,26 C40,17 35,9 24,9 Z" />
+
+    <!-- Belly highlight. -->
+    <path
+        android:fillColor="#5B6CFF"
+        android:pathData="M24,24 C19,24 16,28 16,33 C16,38 19,41 24,41 C29,41 32,38 32,33 C32,28 29,24 24,24 Z" />
+
+    <!-- Eyes (whites). -->
+    <path
+        android:fillColor="#F4F5FB"
+        android:pathData="M18,22 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z" />
+    <path
+        android:fillColor="#F4F5FB"
+        android:pathData="M30,22 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0 Z" />
+
+    <!-- Pupils. -->
+    <path
+        android:fillColor="#0B1026"
+        android:pathData="M18,22 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" />
+    <path
+        android:fillColor="#0B1026"
+        android:pathData="M30,22 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" />
+
+    <!-- Worried eyebrows: outer end lower, inner end higher. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0B1026"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M14,18 L20,13" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#0B1026"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:pathData="M28,13 L34,18" />
+
+    <!-- Beak. -->
+    <path
+        android:fillColor="#FFB020"
+        android:pathData="M24,26 L27,30 L21,30 Z" />
+</vector>

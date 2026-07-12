@@ -85,12 +85,14 @@ class ReadingWidgetProvider : AppWidgetProvider() {
     ) {
         val bgRes: Int
         val accentRes: Int
+        val owlRes: Int
         val title: String
         val subtitle: String
 
         if (hasReadToday) {
             bgRes = R.drawable.widget_bg_done
             accentRes = R.drawable.accent_check
+            owlRes = R.drawable.owl_glyph_happy
             title = "Nicely done tonight"
             subtitle = if (streak > 0) {
                 "$streak-day streak and counting."
@@ -102,18 +104,21 @@ class ReadingWidgetProvider : AppWidgetProvider() {
                 TimeBucket.DAY -> {
                     bgRes = R.drawable.widget_bg_day
                     accentRes = R.drawable.accent_moon
+                    owlRes = R.drawable.owl_glyph
                     title = "Tonight's reading is waiting"
                     subtitle = "Settle in whenever you're ready."
                 }
                 TimeBucket.EVENING -> {
                     bgRes = R.drawable.widget_bg_evening
                     accentRes = R.drawable.accent_moon
+                    owlRes = R.drawable.owl_glyph_worried
                     title = "Time to read"
                     subtitle = "A few pages before the night winds down."
                 }
                 TimeBucket.NIGHT -> {
                     bgRes = R.drawable.widget_bg_night
                     accentRes = R.drawable.accent_flame
+                    owlRes = R.drawable.owl_glyph_angry
                     title = if (streak > 0) {
                         "Don't lose your $streak-day streak"
                     } else {
@@ -126,6 +131,7 @@ class ReadingWidgetProvider : AppWidgetProvider() {
 
         views.setInt(R.id.widget_root, "setBackgroundResource", bgRes)
         views.setImageViewResource(R.id.widget_accent, accentRes)
+        views.setImageViewResource(R.id.widget_owl, owlRes)
         views.setTextViewText(R.id.widget_title, title)
         views.setTextViewText(R.id.widget_subtitle, subtitle)
     }
