@@ -175,6 +175,48 @@ every finding, verified **on device end-to-end**:
   → re-opened path → **finished node green, next node glowing START**. The
   "doesn't go anywhere" complaint is closed.
 
+### Round 8 — back-nav, real notifications, home-screen widget (2026-07-12)
+
+User flagged: reading path had no way back to the library, the app bar showed
+a black band, wanted more owl animation, real push notifications, and a
+Duolingo-style home-screen widget reacting to time-of-day/streak-danger (own
+art only, never Duolingo's assets). Fanned out design-system + a 3-stage
+mobile pipeline, then personally re-drove the exact broken repro on device:
+
+- **design_system:** `NightScaffold` — the root fix for the black band. Every
+  screen now gets a real `night900` background + `extendBodyBehindAppBar`
+  instead of each screen patching a transparent-AppBar workaround. Owl mascot
+  gained jittered non-periodic blink/head-tilt idle motion and a new
+  `OwlState.greet` (wired into the add-book sheet's empty state). 175 dart
+  tests total (up from 137).
+- **mobile:** every screen wrapped in `NightScaffold`; new `AdaptiveBackButton`
+  (pop when possible, else fall back to Library) on the reading path, nightly
+  session, and completion screens so none of them dead-end, including after
+  the stack-replacing post-quiz `go()`. Local daily reminders
+  (`flutter_local_notifications` + `timezone`) with a live Settings toggle +
+  time picker; best-effort FCM token registration gated behind try/catch so
+  the app still boots without a `google-services.json` in dev. A native
+  Kotlin `AppWidgetProvider` + `home_widget` bridge renders a day/evening/
+  night/done state from real streak data, updated at boot and after quiz
+  submit.
+- **VERIFIED ON DEVICE, this round:** the "can't tap the available node"
+  investigation turned out to be my own coordinate drift (repeated
+  tap/swipe attempts had scrolled the path), not an app bug — confirmed via
+  `uiautomator dump` ground-truth bounds, then re-drove the full repro:
+  Library → path → node → session → 4-question quiz (each CHECK verified
+  against `/v1/quiz/:id/check`) → **CompletionPage** (100% accuracy, +20 XP,
+  streak 1) → CONTINUE (stack-replacing `go()`) → path now shows the node
+  green and the next one glowing START → **back arrow → Library**, closing
+  the back-nav dead-end in exactly the scenario that used to break it. Also
+  confirmed live: the Nightly-reminder toggle schedules a real Android
+  `RTC_WAKEUP` alarm and updates its subtitle to "Every day at 8:00 PM"; the
+  home-screen widget placed via the launcher's widget picker renders our own
+  owl/moon/flame art and correctly flips to the green "Nicely done tonight —
+  1-day streak and counting" state right after the quiz that was just
+  completed. FCM remote delivery is code-complete but untested here (no
+  Firebase project on this machine) — local notifications are fully real
+  and verified.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
@@ -275,3 +317,5 @@ _Updated as we go. Full detail in `git log`._
 - `feat(api): enrich library list + comprehensive backend tests; fix dev user UUID`
 - `feat(mobile): library titles, navigable loop, offline prefetch, audio + tests`
 - `feat(admin): notifications send-test-push + honest states on remaining pages`
+- `feat(design-system): NightScaffold shell + owl idle polish`
+- `feat(mobile): back-nav fix, real notifications, home-screen widget`
