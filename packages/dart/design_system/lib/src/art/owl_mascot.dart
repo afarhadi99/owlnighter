@@ -22,6 +22,16 @@ enum OwlState {
   /// eyes, then settles. Ideal for empty states / greetings. Additive — added
   /// after the original three and never reordered.
   greet,
+
+  /// Mild concern — furrowed "worried" eyebrows over wide, attentive eyes.
+  /// For nudging that it's getting late and tonight's lesson hasn't been
+  /// done yet. Additive — added after [greet] and never reordered.
+  worried,
+
+  /// Frustrated / insistent — squinted, glaring eyes under a furrowed frown
+  /// and a small tense shake. For when tonight's lesson was skipped.
+  /// Additive — added after [worried] and never reordered.
+  angry,
 }
 
 /// A charming owl mascot assembled from hand-authored SVG path layers (body,
@@ -36,10 +46,16 @@ enum OwlState {
 /// * [OwlState.cheer] — flaps its wings, bounces, pupils turn to sparkles.
 /// * [OwlState.sleepy] — eyes droop to half, the bob slows, and a "z" drifts up.
 /// * [OwlState.greet] — peeks up once with sparkling eyes then settles.
+/// * [OwlState.worried] — wide eyes under concerned eyebrows (inner end
+///   raised, outer end lowered) — mild "getting late" concern.
+/// * [OwlState.angry] — squinted, glaring eyes under furrowed eyebrows
+///   (inner end lowered, outer end raised) with a quick, tight side-to-side
+///   shake — frustrated/insistent.
 ///
 /// Reduced motion → a static owl posed for the current state (open, charming
-/// eyes for idle/cheer/greet, drooped eyes for sleepy) with no ticking
-/// controller and no jitter. Colours are pulled from [AppColors]; nothing is
+/// eyes for idle/cheer/greet, drooped eyes for sleepy, wide concerned eyes
+/// for worried, squinted glaring eyes for angry) with no ticking controller,
+/// no jitter, and no shake. Colours are pulled from [AppColors]; nothing is
 /// hard-coded.
 ///
 /// A fixed [random] may be injected for deterministic tests of the jittered
@@ -315,12 +331,16 @@ class _OwlPainter extends CustomPainter {
       OwlState.cheer => 2.2,
       OwlState.sleepy => 0.5,
       OwlState.greet => 1.2,
+      OwlState.worried => 0.9,
+      OwlState.angry => 0.35,
     };
     final double bobAmp = switch (state) {
       OwlState.idle => 3.0,
       OwlState.cheer => 9.0,
       OwlState.sleepy => 2.0,
       OwlState.greet => 3.0,
+      OwlState.worried => 2.0,
+      OwlState.angry => 1.5,
     };
     var bob = reduce ? 0.0 : math.sin(loop * bobPeriod) * bobAmp;
 
@@ -333,6 +353,7 @@ class _OwlPainter extends CustomPainter {
     // droops to ~0.32.
     final double baseOpen = switch (state) {
       OwlState.sleepy => 0.32,
+      OwlState.angry => 0.6,
       _ => 1.0,
     };
     double open = baseOpen;
@@ -346,7 +367,11 @@ class _OwlPainter extends CustomPainter {
     final double flap =
         (!reduce && state == OwlState.cheer) ? math.sin(loop * 3) * 0.5 : 0.0;
 
-    canvas.translate(0, bob);
+    // Angry: a small, tense side-to-side shake (never during reduced motion).
+    final double shake =
+        (!reduce && state == OwlState.angry) ? math.sin(loop * 10) * 1.2 : 0.0;
+
+    canvas.translate(shake, bob);
 
     // --- Shadow (drawn before the head-tilt so it stays grounded) --------
     final shadow = Paint()
@@ -404,6 +429,7 @@ class _OwlPainter extends CustomPainter {
 
     // --- Face: eyes ------------------------------------------------------
     _drawEyes(canvas, open: open, loop: loop);
+    _drawEyebrows(canvas);
 
     // Beak.
     canvas.drawPath(_OwlPaths.beak, Paint()..color = AppColors.amber500);
@@ -515,6 +541,27 @@ class _OwlPainter extends CustomPainter {
           );
         }
       }
+    }
+  }
+
+  /// Furrowed (angry) or concerned (worried) eyebrows, drawn directly above
+  /// each eye disc. No-op for every other state.
+  void _drawEyebrows(Canvas canvas) {
+    if (state != OwlState.angry && state != OwlState.worried) return;
+
+    final paint = Paint()
+      ..color = AppColors.night900
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    if (state == OwlState.angry) {
+      // Inner end lower, outer end higher — a furrowed "V" frown.
+      canvas.drawLine(const Offset(64, 68), const Offset(86, 80), paint);
+      canvas.drawLine(const Offset(114, 80), const Offset(136, 68), paint);
+    } else {
+      // Worried: inner end higher, outer end lower — concerned brows.
+      canvas.drawLine(const Offset(64, 80), const Offset(86, 66), paint);
+      canvas.drawLine(const Offset(114, 66), const Offset(136, 80), paint);
     }
   }
 

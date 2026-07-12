@@ -103,5 +103,43 @@ void main() {
       expect(find.byType(OwlMascot), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('new worried state animates without exceptions',
+        (tester) async {
+      await tester.pumpWidget(_host(const OwlMascot(state: OwlState.worried)));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(OwlMascot), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('worried renders a static owl under reduced motion',
+        (tester) async {
+      await tester.pumpWidget(
+        _host(const OwlMascot(state: OwlState.worried), reduceMotion: true),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OwlMascot), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('new angry state animates (with shake) without exceptions',
+        (tester) async {
+      await tester.pumpWidget(_host(const OwlMascot(state: OwlState.angry)));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(OwlMascot), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('angry renders a static owl under reduced motion',
+        (tester) async {
+      await tester.pumpWidget(
+        _host(const OwlMascot(state: OwlState.angry), reduceMotion: true),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OwlMascot), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }
