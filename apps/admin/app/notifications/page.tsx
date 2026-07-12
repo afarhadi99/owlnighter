@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/Badge";
 import { api, ApiRequestError } from "@/lib/api";
 import type { AdminPushTestResponse, PushType } from "@/lib/api";
+import { Spinner } from "@/components/Spinner";
+import { chime, error as errorChime } from "@/lib/sfx";
 
 // The four notification kinds the push pipeline can render (mirrors the
 // ReminderKind / PushType union in @owlnighter/jobs).
@@ -30,12 +32,14 @@ export default function NotificationsPage() {
     try {
       const res = await api.sendTestPush(userId, type);
       setResult(res);
+      chime();
     } catch (err) {
       setError(
         err instanceof ApiRequestError
           ? `${err.status}: ${err.body?.error.message ?? err.message}`
           : (err as Error).message,
       );
+      errorChime();
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +91,13 @@ export default function NotificationsPage() {
           disabled={submitting || !userId.trim()}
           className="h-9 rounded bg-accent px-4 text-sm font-medium text-ink-900 disabled:opacity-40"
         >
-          {submitting ? "Sending…" : "Send test push"}
+          {submitting ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Spinner size={14} /> Sending…
+            </span>
+          ) : (
+            "Send test push"
+          )}
         </button>
       </form>
 

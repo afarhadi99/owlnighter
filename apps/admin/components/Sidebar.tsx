@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { OwlLogo } from "@/components/OwlLogo";
+import { SFX_MUTE_EVENT, isMuted, setMuted } from "@/lib/sfx";
 
 // Modules mirror the blueprint's "Admin dashboard feature set" table.
 const NAV: { href: string; label: string; hint: string }[] = [
@@ -18,15 +21,32 @@ const NAV: { href: string; label: string; hint: string }[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [muted, setMutedState] = useState(false);
+
+  useEffect(() => {
+    setMutedState(isMuted());
+    const onChange = (e: Event) => setMutedState((e as CustomEvent<boolean>).detail);
+    window.addEventListener(SFX_MUTE_EVENT, onChange);
+    return () => window.removeEventListener(SFX_MUTE_EVENT, onChange);
+  }, []);
+
+  function toggleMuted() {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+  }
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-ink-800">
-      <div className="border-b border-line px-4 py-4">
-        <div className="font-mono text-sm font-semibold tracking-tight text-accent">
-          owlnighter
-        </div>
-        <div className="text-[11px] uppercase tracking-widest text-muted">
-          grounding console
+      <div className="flex items-center gap-2.5 border-b border-line px-4 py-4">
+        <OwlLogo size={30} />
+        <div>
+          <div className="font-mono text-sm font-semibold tracking-tight text-accent">
+            owlnighter
+          </div>
+          <div className="text-[11px] uppercase tracking-widest text-muted">
+            grounding console
+          </div>
         </div>
       </div>
 
@@ -55,7 +75,20 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-line px-4 py-3 text-[11px] text-muted">
-        env: {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate">
+            env: {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}
+          </span>
+          <button
+            type="button"
+            onClick={toggleMuted}
+            aria-pressed={muted}
+            title={muted ? "Sound off — click to enable chimes" : "Sound on — click to mute"}
+            className="shrink-0 rounded border border-line px-1.5 py-0.5 text-[11px] text-muted transition-colors hover:border-accent hover:text-accent"
+          >
+            {muted ? "🔇" : "🔔"}
+          </button>
+        </div>
       </div>
     </aside>
   );

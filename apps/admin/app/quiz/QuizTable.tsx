@@ -5,6 +5,8 @@ import { DataTable } from "@/components/DataTable";
 import { Badge, quizModeTone, confidenceTone } from "@/components/Badge";
 import { api, ApiRequestError } from "@/lib/api";
 import type { AdminQuizListItem } from "@/lib/api";
+import { Spinner } from "@/components/Spinner";
+import { chime, error as errorChime } from "@/lib/sfx";
 
 export function QuizTable({ initialQuizzes }: { initialQuizzes: AdminQuizListItem[] }) {
   const [quizzes, setQuizzes] = useState(initialQuizzes);
@@ -26,12 +28,14 @@ export function QuizTable({ initialQuizzes }: { initialQuizzes: AdminQuizListIte
             : q,
         ),
       );
+      chime();
     } catch (err) {
       setError(
         err instanceof ApiRequestError
           ? `${err.status}: ${err.body?.error.message ?? err.message}`
           : (err as Error).message,
       );
+      errorChime();
     } finally {
       setPendingId(null);
     }
@@ -95,7 +99,13 @@ export function QuizTable({ initialQuizzes }: { initialQuizzes: AdminQuizListIte
                   onClick={() => onInvalidate(r.quizId)}
                   className="rounded border border-line px-2 py-0.5 text-xs text-warn hover:bg-ink-700 disabled:opacity-50"
                 >
-                  {pendingId === r.quizId ? "invalidating…" : "invalidate"}
+                  {pendingId === r.quizId ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Spinner size={11} /> invalidating…
+                    </span>
+                  ) : (
+                    "invalidate"
+                  )}
                 </button>
               ),
           },

@@ -7,6 +7,7 @@ import type { BookSearchResponse, CatalogCandidate } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable } from "@/components/DataTable";
 import { Badge } from "@/components/Badge";
+import { Spinner } from "@/components/Spinner";
 
 export default function BooksPage() {
   const [title, setTitle] = useState("");
@@ -60,7 +61,13 @@ export default function BooksPage() {
             disabled={loading || !title.trim()}
             className="h-9 rounded bg-accent px-4 text-sm font-medium text-ink-900 disabled:opacity-40"
           >
-            {loading ? "Searching…" : "Search"}
+            {loading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Spinner size={14} /> Searching…
+              </span>
+            ) : (
+              "Search"
+            )}
           </button>
         </div>
       </form>

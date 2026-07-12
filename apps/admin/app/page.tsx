@@ -3,6 +3,7 @@ import type { AdminMetricsResponse } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
 import { StatTile } from "@/components/StatTile";
 import { Badge } from "@/components/Badge";
+import { ConstellationDivider } from "@/components/ConstellationDivider";
 
 export default async function OverviewPage() {
   let metrics: AdminMetricsResponse | null = null;
@@ -78,6 +79,8 @@ export default async function OverviewPage() {
           sub="in catalog"
         />
       </div>
+
+      <ConstellationDivider className="my-6" />
 
       <div className="mt-6 rounded-md border border-line bg-ink-800 p-4 text-sm text-muted">
         <div className="mb-1 font-mono text-slate-200">Where to look next</div>
