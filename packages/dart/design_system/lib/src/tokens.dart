@@ -24,6 +24,19 @@ abstract final class AppColors {
   static const Color success500 = Color(0xFF2FBF71);
   static const Color danger500 = Color(0xFFEF4E4E);
 
+  // ── Juice kit ──────────────────────────────────────────────────────────
+  // The game-app "juice" layer uses chunky 3D controls whose bottom edge is a
+  // darker shade of the same hue. These are the face + edge pairs. The success
+  // green is a Duolingo-family green (~#58CC02) pulled toward our warmer night
+  // palette so it sits beside indigo/amber without clashing.
+  static const Color successJuice = Color(0xFF4CBF56); // chunky success face
+  static const Color successJuiceEdge = Color(0xFF359441); // darker bottom edge
+  static const Color indigoEdge = Color(0xFF3B49C7); // indigo500 bottom edge
+  static const Color dangerEdge = Color(0xFFC53A3A); // danger500 bottom edge
+  static const Color amberEdge = Color(0xFFCC8916); // amber500 bottom edge
+  static const Color disabledFill = Color(0xFF2A315C); // chunky disabled face
+  static const Color disabledInk = Color(0xFF6B72A0); // disabled label/icon
+
   // Neutrals.
   static const Color ink = Color(0xFFF4F5FB);
   static const Color inkMuted = Color(0xFFA6ACD6);

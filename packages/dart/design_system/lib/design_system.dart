@@ -13,6 +13,10 @@ export 'src/motion/streak_flame.dart';
 export 'src/motion/animated_card_switcher.dart';
 export 'src/motion/xp_burst_overlay.dart';
 
+// The "juice kit": chunky-tactile game-app components (ChunkyButton, feedback
+// banner, progress bar, XP count-up, stat cards). PathNode v2 lives in motion/.
+export 'src/juice/juice.dart';
+
 // SVG-powered animated art layer (CustomPainter + path_drawing).
 export 'src/art/night_sky.dart';
 export 'src/art/owl_mascot.dart';
