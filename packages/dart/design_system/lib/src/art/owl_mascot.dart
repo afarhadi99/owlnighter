@@ -8,7 +8,8 @@ import '../motion/reduced_motion.dart';
 
 /// Behavioural states for [OwlMascot].
 enum OwlState {
-  /// Gentle breathing bob with a periodic double-blink.
+  /// Gentle breathing bob with a jittered, natural blink cadence and rare
+  /// micro head-tilts.
   idle,
 
   /// Wing flap + upward bounce + bright, sparkling eyes (celebration).
@@ -16,6 +17,11 @@ enum OwlState {
 
   /// Half-closed eyes, slow bob, a floating "z" — bedtime mood.
   sleepy,
+
+  /// Friendly one-shot "peek": the owl bobs up to say hello with sparkling
+  /// eyes, then settles. Ideal for empty states / greetings. Additive — added
+  /// after the original three and never reordered.
+  greet,
 }
 
 /// A charming owl mascot assembled from hand-authored SVG path layers (body,
@@ -25,24 +31,37 @@ enum OwlState {
 ///
 /// The owl reacts to [state]:
 /// * [OwlState.idle] — breathes (subtle vertical bob + belly scale) and blinks
-///   in a natural double-blink cadence.
+///   on a **jittered, non-periodic** cadence, with occasional (every ~6-10s)
+///   brief head-tilt micro-motions so it never feels robotic.
 /// * [OwlState.cheer] — flaps its wings, bounces, pupils turn to sparkles.
 /// * [OwlState.sleepy] — eyes droop to half, the bob slows, and a "z" drifts up.
+/// * [OwlState.greet] — peeks up once with sparkling eyes then settles.
 ///
-/// Reduced motion → a static owl posed for the current state (open eyes for
-/// idle/cheer, drooped eyes for sleepy) with no ticking controller. Colours are
-/// pulled from [AppColors]; nothing is hard-coded.
+/// Reduced motion → a static owl posed for the current state (open, charming
+/// eyes for idle/cheer/greet, drooped eyes for sleepy) with no ticking
+/// controller and no jitter. Colours are pulled from [AppColors]; nothing is
+/// hard-coded.
+///
+/// A fixed [random] may be injected for deterministic tests of the jittered
+/// idle behaviour; when omitted a fresh [math.Random] is used so the timing is
+/// naturally varied in production.
 class OwlMascot extends StatefulWidget {
   const OwlMascot({
     super.key,
     this.state = OwlState.idle,
     this.size = 160,
     this.semanticLabel = 'Owl mascot',
+    this.random,
   });
 
   final OwlState state;
   final double size;
   final String semanticLabel;
+
+  /// Optional seedable source for the idle jitter (blink cadence + micro-tilt
+  /// timing). Additive: defaults to a fresh [math.Random] which preserves the
+  /// prior lifelike-but-varied behaviour for every existing call site.
+  final math.Random? random;
 
   @override
   State<OwlMascot> createState() => _OwlMascotState();
@@ -54,12 +73,16 @@ class _OwlMascotState extends State<OwlMascot> with TickerProviderStateMixin {
     duration: const Duration(seconds: 4),
   );
 
-  // Eased 0..1..0 value driving state transitions (eye droop, wing rest angle).
+  // Eased 0..1..0 value driving state transitions (eye droop, wing rest angle,
+  // greet peek).
   late final AnimationController _transition = AnimationController(
     vsync: this,
     duration: AppMotion.slow,
     value: 1,
   );
+
+  late final _IdleTimeline _idle =
+      _IdleTimeline(widget.random ?? math.Random());
 
   @override
   void didUpdateWidget(covariant OwlMascot oldWidget) {
@@ -97,12 +120,25 @@ class _OwlMascotState extends State<OwlMascot> with TickerProviderStateMixin {
           child: AnimatedBuilder(
             animation: Listenable.merge([_controller, _transition]),
             builder: (context, _) {
+              // Advance the jittered idle timeline from the master clock. Done
+              // here (not setState) so it rides the existing per-frame repaint;
+              // it is delta-based on the controller value, so extra rebuilds in
+              // the same frame are no-ops.
+              double idleOpen = 1.0;
+              double idleTilt = 0.0;
+              if (!reduce && widget.state == OwlState.idle) {
+                _idle.advance(_controller.value);
+                idleOpen = _idle.eyeOpen;
+                idleTilt = _idle.headTilt;
+              }
               return CustomPaint(
                 painter: _OwlPainter(
                   state: widget.state,
                   t: reduce ? 0 : _controller.value,
                   transition: _transition.value,
                   reduce: reduce,
+                  idleOpen: idleOpen,
+                  headTilt: idleTilt,
                 ),
                 size: Size.square(widget.size),
               );
@@ -111,6 +147,92 @@ class _OwlMascotState extends State<OwlMascot> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+}
+
+/// Drives the idle owl's non-periodic blink cadence and rare micro head-tilts.
+///
+/// Advanced by [advance] with the master [AnimationController]'s 0..1 value; it
+/// integrates the wrapped delta into a monotonic seconds clock (the controller
+/// loops every 4s) and schedules the next blink / micro-tilt with jitter drawn
+/// from the injected [math.Random]. This makes the behaviour fully
+/// deterministic for a seeded random, which the tests rely on.
+class _IdleTimeline {
+  _IdleTimeline(this._rng) {
+    // First blink 1-3s in; first micro-tilt 6-10s in.
+    _blinkStart = 1.0 + _rng.nextDouble() * 2.0;
+    _isDouble = _rng.nextDouble() < 0.35;
+    _microStart = 6.0 + _rng.nextDouble() * 4.0;
+    _microAmp = _pickMicroAmp();
+  }
+
+  final math.Random _rng;
+
+  static const double _controllerSeconds = 4.0;
+  static const double _blinkHalf = 0.16; // one open→shut→open dip
+  static const double _doubleGap = 0.08; // pause between the two dips
+  static const double _microDur = 0.7; // head-tilt in-out window
+
+  double _seconds = 0.0;
+  double _lastValue = 0.0;
+  bool _seeded = false;
+
+  double _blinkStart = 0.0;
+  bool _isDouble = false;
+
+  double _microStart = 0.0;
+  double _microAmp = 0.0;
+
+  double _pickMicroAmp() {
+    // 0.045..0.09 rad (~2.5-5deg), random left/right.
+    final mag = 0.045 + _rng.nextDouble() * 0.045;
+    return _rng.nextBool() ? mag : -mag;
+  }
+
+  void advance(double controllerValue) {
+    if (!_seeded) {
+      _lastValue = controllerValue;
+      _seeded = true;
+      return;
+    }
+    // Wrapped forward delta in 0..1, scaled to real seconds.
+    final frac = ((controllerValue - _lastValue) % 1.0 + 1.0) % 1.0;
+    _lastValue = controllerValue;
+    _seconds += frac * _controllerSeconds;
+
+    // Reschedule a finished blink.
+    final blinkLen = _isDouble ? (_blinkHalf * 2 + _doubleGap) : _blinkHalf;
+    if (_seconds - _blinkStart > blinkLen) {
+      _blinkStart = _seconds + 2.0 + _rng.nextDouble() * 3.5; // 2.0-5.5s gap
+      _isDouble = _rng.nextDouble() < 0.35;
+    }
+
+    // Reschedule a finished micro-tilt.
+    if (_seconds - _microStart > _microDur) {
+      _microStart = _seconds + 6.0 + _rng.nextDouble() * 4.0; // 6-10s gap
+      _microAmp = _pickMicroAmp();
+    }
+  }
+
+  /// Eye openness 0..1 (1 = wide). V-shaped dip(s) during a blink window.
+  double get eyeOpen {
+    final local = _seconds - _blinkStart;
+    if (local < 0) return 1.0;
+    if (local <= _blinkHalf) return (0.5 - local / _blinkHalf).abs() * 2;
+    if (_isDouble) {
+      final l2 = local - (_blinkHalf + _doubleGap);
+      if (l2 >= 0 && l2 <= _blinkHalf) {
+        return (0.5 - l2 / _blinkHalf).abs() * 2;
+      }
+    }
+    return 1.0;
+  }
+
+  /// Head-tilt angle in radians; a brief sinusoidal in-out, else 0.
+  double get headTilt {
+    final local = _seconds - _microStart;
+    if (local < 0 || local > _microDur) return 0.0;
+    return math.sin(local / _microDur * math.pi) * _microAmp;
   }
 }
 
@@ -168,12 +290,16 @@ class _OwlPainter extends CustomPainter {
     required this.t,
     required this.transition,
     required this.reduce,
+    required this.idleOpen,
+    required this.headTilt,
   });
 
   final OwlState state;
   final double t; // 0..1 master loop
   final double transition; // 0..1 state-transition ease
   final bool reduce;
+  final double idleOpen; // jittered idle eye openness (idle only)
+  final double headTilt; // jittered idle micro-tilt in radians (idle only)
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -188,22 +314,30 @@ class _OwlPainter extends CustomPainter {
       OwlState.idle => 1.0,
       OwlState.cheer => 2.2,
       OwlState.sleepy => 0.5,
+      OwlState.greet => 1.2,
     };
     final double bobAmp = switch (state) {
       OwlState.idle => 3.0,
       OwlState.cheer => 9.0,
       OwlState.sleepy => 2.0,
+      OwlState.greet => 3.0,
     };
-    final bob = reduce ? 0.0 : math.sin(loop * bobPeriod) * bobAmp;
+    var bob = reduce ? 0.0 : math.sin(loop * bobPeriod) * bobAmp;
 
-    // Eye openness: 1 = wide, 0 = shut. Idle blinks; sleepy droops to ~0.35.
+    // Greet peek: a one-shot rise-and-settle driven by the transition ease.
+    if (state == OwlState.greet && !reduce) {
+      bob += math.sin(transition * math.pi) * -16.0;
+    }
+
+    // Eye openness: 1 = wide, 0 = shut. Idle uses the jittered timeline; sleepy
+    // droops to ~0.32.
     final double baseOpen = switch (state) {
       OwlState.sleepy => 0.32,
       _ => 1.0,
     };
     double open = baseOpen;
     if (!reduce && state == OwlState.idle) {
-      open = _blink(t);
+      open = idleOpen;
     }
     // Ease openness across state transitions.
     open = _lerpFromNeutral(open);
@@ -214,7 +348,7 @@ class _OwlPainter extends CustomPainter {
 
     canvas.translate(0, bob);
 
-    // --- Shadow ----------------------------------------------------------
+    // --- Shadow (drawn before the head-tilt so it stays grounded) --------
     final shadow = Paint()
       ..color = AppColors.night900.withValues(alpha: 0.35)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
@@ -226,6 +360,15 @@ class _OwlPainter extends CustomPainter {
       ),
       shadow,
     );
+
+    // Idle micro head-tilt: rotate the owl (not its shadow) around its middle.
+    final applyTilt = !reduce && state == OwlState.idle && headTilt != 0.0;
+    if (applyTilt) {
+      canvas.save();
+      canvas.translate(100, 120);
+      canvas.rotate(headTilt);
+      canvas.translate(-100, -120);
+    }
 
     // --- Wings (behind the body) ----------------------------------------
     _drawWing(
@@ -280,20 +423,9 @@ class _OwlPainter extends CustomPainter {
       _drawSleepyZ(canvas, t);
     }
 
-    canvas.restore();
-  }
+    if (applyTilt) canvas.restore();
 
-  /// Natural double-blink: eyes wide most of the loop, two quick shuts.
-  double _blink(double t) {
-    // Two blink windows within the loop.
-    for (final start in const [0.14, 0.24]) {
-      final local = (t - start) / 0.05;
-      if (local >= 0 && local <= 1) {
-        // v-shape: open→shut→open.
-        return (0.5 - local).abs() * 2;
-      }
-    }
-    return 1.0;
+    canvas.restore();
   }
 
   /// Blend the target openness with the neutral (wide) pose during transitions
@@ -329,7 +461,8 @@ class _OwlPainter extends CustomPainter {
     const rightEye = Offset(120, 92);
     const eyeR = 20.0;
 
-    final cheer = state == OwlState.cheer;
+    // Sparkling eyes for the celebratory / greeting states.
+    final sparkleEyes = state == OwlState.cheer || state == OwlState.greet;
 
     for (final eye in const [leftEye, rightEye]) {
       // White (eye disc).
@@ -363,10 +496,10 @@ class _OwlPainter extends CustomPainter {
       }
 
       if (open > 0.15) {
-        // Pupil drifts subtly (idle) or is a sparkle (cheer).
+        // Pupil drifts subtly (idle) or is a sparkle (cheer/greet).
         final drift = reduce ? Offset.zero : Offset(math.sin(loop) * 2, 0);
         final pupilCenter = eye + drift;
-        if (cheer && !reduce) {
+        if (sparkleEyes && !reduce) {
           _drawSparkle(canvas, pupilCenter, 8, AppColors.amber500);
         } else {
           canvas.drawCircle(
@@ -425,7 +558,9 @@ class _OwlPainter extends CustomPainter {
       old.state != state ||
       old.t != t ||
       old.transition != transition ||
-      old.reduce != reduce;
+      old.reduce != reduce ||
+      old.idleOpen != idleOpen ||
+      old.headTilt != headTilt;
 }
 
 /// Local double lerp (avoids importing dart:ui's lerpDouble null-return type).

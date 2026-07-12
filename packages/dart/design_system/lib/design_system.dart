@@ -5,6 +5,7 @@ library;
 
 export 'src/tokens.dart';
 export 'src/theme.dart';
+export 'src/night_scaffold.dart';
 export 'src/motion/reduced_motion.dart';
 export 'src/motion/reward_button.dart';
 export 'src/motion/path_node.dart';
