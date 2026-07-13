@@ -18,12 +18,32 @@ citations so the app never fakes precision it doesn't have.
 > Gemini grounding → library → Gemini/Groq plan generation → quiz → streak),
 > and the admin console's live pages render against the same API. The full
 > on-device loop is verified: path map → nightly session → quiz → 4/4 → streak
-> celebration. **68 backend tests** (`node:test`, no Postgres required) +
-> **74 Dart tests** are green, the OpenAPI contract emits **19 paths**, and the
-> Android debug APK builds.
+> celebration → real local push notifications → a Duolingo-style home-screen
+> widget whose owl visibly changes mood with the day. **74 backend tests**
+> (`node:test`, no Postgres required) + **174 Dart tests** are green, the
+> OpenAPI contract emits **21 paths**, and the Android debug APK builds.
 > This is a real, structured monorepo built from
 > [`docs/reading-research.md`](docs/reading-research.md). See
-> [`GOAL.md`](GOAL.md) for the live build plan and what is done vs. pending.
+> [`GOAL.md`](GOAL.md) for the live build plan and what is done vs. pending,
+> or [`docs/reports/round9-feature-report.html`](docs/reports/round9-feature-report.html)
+> for a screenshot-driven walkthrough of the latest round.
+
+## Screenshots
+
+<div align="center">
+
+| Library | Reading path | Tonight's reading | Quiz |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/library.jpg" width="200"> | <img src="docs/screenshots/reading-path.jpg" width="200"> | <img src="docs/screenshots/nightly-session.jpg" width="200"> | <img src="docs/screenshots/quiz.jpg" width="200"> |
+| **Night complete** | **Streak + mood owl** | **Real reminders** | **Home-screen widget** |
+| <img src="docs/screenshots/completion.jpg" width="200"> | <img src="docs/screenshots/streaks-mood.jpg" width="200"> | <img src="docs/screenshots/settings-reminder.jpg" width="200"> | <img src="docs/screenshots/home-widget.jpg" width="200"> |
+
+</div>
+
+The owl mascot's mood — calm, worried, angry, or cheerful — reflects whether
+tonight's reading is done yet and how late it is, on both the Streaks tab and
+the home-screen widget; the **Streak + mood owl** shot above shows the
+cheerful state, right after finishing a session.
 
 ## What's in the box
 
@@ -104,14 +124,14 @@ cd apps/mobile && flutter run
 See **[`docs/testing.md`](docs/testing.md)** for the full list. In short:
 
 ```bash
-# Backend — 63 tests, node:test, no Postgres required
+# Backend — 74 tests, node:test, no Postgres required
 pnpm --filter @owlnighter/api test
 
 # Every Dart package — analyze + test (api_client is analyze-only, no tests yet)
-cd apps/mobile && flutter analyze && flutter test
-cd packages/dart/app_core && flutter analyze && flutter test
-cd packages/dart/offline && flutter analyze && flutter test
-cd packages/dart/design_system && flutter analyze && flutter test
+cd apps/mobile && flutter analyze && flutter test              # 66 tests
+cd packages/dart/app_core && flutter analyze && flutter test   # 22 tests
+cd packages/dart/offline && flutter analyze && flutter test    # 19 tests
+cd packages/dart/design_system && flutter analyze && flutter test  # 67 tests
 cd packages/dart/api_client && flutter analyze
 
 # OpenAPI contract must be regenerated & committed after any Zod change
