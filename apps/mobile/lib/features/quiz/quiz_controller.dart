@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/api/extras_api.dart';
 import '../../services/api/repository_providers.dart';
+import '../../services/icon/app_icon_bridge.dart';
 import '../../services/widget/home_widget_bridge.dart';
+import '../../shared/mood/owl_mood.dart';
 import '../nightly_session/nightly_session_controller.dart';
 
 /// Immutable UI state for the per-question feedback loop.
@@ -158,6 +160,11 @@ class QuizController
         HomeWidgetBridge.publish(
           hasReadToday: true,
           currentStreak: result.streak.currentStreak,
+        ),
+      );
+      unawaited(
+        AppIconBridge.publish(
+          owlMoodFor(hasReadToday: true, now: DateTime.now()),
         ),
       );
       return result;

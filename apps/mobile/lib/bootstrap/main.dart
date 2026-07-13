@@ -10,10 +10,12 @@ import '../app/app.dart';
 import '../app/router.dart';
 import '../services/api/auth_repository_impl.dart';
 import '../services/api/extras_api.dart';
+import '../services/icon/app_icon_bridge.dart';
 import '../services/notifications/notification_scheduler.dart';
 import '../services/notifications/reminder_settings.dart';
 import '../services/push/push_service.dart';
 import '../services/widget/home_widget_bridge.dart';
+import '../shared/mood/owl_mood.dart';
 
 /// App entry point. Runs inside a guarded [Zone] so uncaught async errors are
 /// captured centrally, and restores any persisted session before first frame.
@@ -125,6 +127,9 @@ Future<void> _publishWidgetState(ProviderContainer container) async {
     await HomeWidgetBridge.publish(
       hasReadToday: readToday,
       currentStreak: stats.currentStreak,
+    );
+    await AppIconBridge.publish(
+      owlMoodFor(hasReadToday: readToday, now: DateTime.now()),
     );
   } catch (e) {
     if (kDebugMode) debugPrint('Widget state publish skipped: $e');
