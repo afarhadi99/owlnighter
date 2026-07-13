@@ -253,6 +253,49 @@ diff and re-verified on device:
   exact `OwlState`) since reaching them live would require rooting the
   emulator to move its clock past midnight.
 
+### Round 10 — dynamic app launcher icon (2026-07-12)
+
+User asked for the app's own launcher icon to be dynamic too, "like
+Duolingo." Discovered along the way that the launcher icon had never
+actually been rebranded — it was still the stock default Flutter logo.
+Fanned out a 2-agent workflow (Android activity-alias/platform-channel +
+Flutter bridge, in parallel since they touch disjoint files) after
+generating the actual owl icon art myself, then fixed a real visual bug
+found only by eye on-device:
+
+- **Icon art:** four owl expressions (neutral/worried/angry/happy, matching
+  the same mood vocabulary as the widget) generated directly from the exact
+  `owl_glyph.xml` path data via GDI+ `GraphicsPath.AddBezier`, at all 5
+  legacy mipmap densities.
+- **Android:** four `<activity-alias>` entries (`IconIdle`/`IconWorried`/
+  `IconAngry`/`IconCheer`), all targeting `MainActivity`, switched at
+  runtime via `PackageManager.setComponentEnabledSetting` (new
+  `AppIconSwitcher.kt`, skips redundant switches by remembering the last
+  mood in SharedPreferences) through a new `MethodChannel`
+  `"app.owlnighter/app_icon"` registered in `MainActivity.configureFlutterEngine`.
+- **mobile:** new `AppIconBridge` forwards `owlMoodFor(...)`'s `OwlState`
+  to the channel, wired at the same two call sites `HomeWidgetBridge`
+  already uses (boot, post-quiz-submit) so the icon and the widget always
+  agree. 71 mobile tests (+5).
+- **Bug found and fixed live, not in review:** the first on-device screenshot
+  showed a visibly wrong result — a small square with a hard edge floating
+  inside a white circle, because the icon was a flat legacy PNG with no
+  adaptive-icon XML, so the launcher fell back to padding it inside the
+  circular mask instead of filling it edge-to-edge. Fixed with a proper
+  `mipmap-anydpi-v26` adaptive icon (a shared `night900` background vector +
+  a per-mood foreground vector, both hand-ported from the same path data,
+  each foreground scaled 1.4× into the 66dp safe zone) for all four
+  variants; the flat PNGs remain only as the pre-API-26 fallback.
+- **VERIFIED ON DEVICE, this round:** rebuilt and installed the APK; a
+  fresh boot (which happened to cross the server's UTC day boundary)
+  organically produced the **worried** icon in the dock, confirmed via a
+  zoomed crop of the exact `uiautomator`-reported bounds; then re-drove a
+  full session (path → session → 4-question quiz → submit) and confirmed
+  the icon flipped to the **cheerful/blush** variant immediately after
+  submit — proving the switch is genuinely reactive, not a one-time
+  default. The adaptive-icon fix was re-verified the same way afterward:
+  clean full circle, no visible square edge.
+
 ---
 
 ## Stage 0 — Foundation scaffold  ✅
@@ -358,3 +401,5 @@ _Updated as we go. Full detail in `git log`._
 - `feat(design-system): worried + angry owl mood states`
 - `feat(mobile,android): expressive owl faces on the home-screen widget`
 - `feat(mobile): mood-aware Streaks owl + fix a stray un-themed header`
+- `feat(mobile,android): dynamic app launcher icon (Duolingo-style)`
+- `feat(mobile): wire the mood-reactive app icon into the reading loop`
