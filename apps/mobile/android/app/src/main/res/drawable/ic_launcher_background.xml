@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon background: owlnighter's night900, shared by all 4 mood
+     foregrounds so the launcher icon stays instantly recognizable — only the
+     owl's expression changes, not the brand color. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0B1026"
+        android:pathData="M0,0 h108 v108 h-108 Z" />
+</vector>

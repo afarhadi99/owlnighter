@@ -26,10 +26,6 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
 
             <!-- Custom-scheme deep link: readingpath://plan/{planId}/step/{stepId}
                  (see services/deep_links/deep_links.dart). Resolved by go_router. -->
@@ -52,6 +48,61 @@
                     android:pathPrefix="/plan"/>
             </intent-filter>
         </activity>
+
+        <!-- Dynamic launcher icon (owl mood): four activity-alias entries all
+             targeting MainActivity, each with a different android:icon. Exactly
+             one is enabled at a time via PackageManager.setComponentEnabledSetting
+             (see AppIconSwitcher.kt) — this is how the home-screen launcher icon
+             changes, distinct from the ReadingWidgetProvider home-screen widget
+             above. IconIdle is the default-enabled alias, matching the app's
+             out-of-the-box icon. -->
+        <activity-alias
+            android:name=".IconIdle"
+            android:targetActivity=".MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconWorried"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_worried">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconAngry"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_angry">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconCheer"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_happy">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
 
         <!-- Home-screen reading widget (ReadingWidgetProvider.kt). onUpdate
              reads cached reading state from the home_widget prefs and redraws;
