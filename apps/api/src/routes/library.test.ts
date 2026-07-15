@@ -129,3 +129,37 @@ test("POST /v1/library/books rejects a new addition once max_books_per_user is r
     await app.close();
   }
 });
+
+test("POST /v1/library/books adds a new book when under the limit", async () => {
+  const { schema } = await import("@owlnighter/db");
+  const NEW_BOOK_ID = "44444444-4444-4444-8444-444444444444";
+  const byTable = tableRows(
+    [schema.profiles, []],
+    [schema.books, [{ id: NEW_BOOK_ID }]],
+    [
+      schema.userBooks,
+      [
+        { id: "u1", bookId: "aaaaaaaa-0000-4000-8000-000000000001", status: "active" },
+        { id: "u2", bookId: "aaaaaaaa-0000-4000-8000-000000000002", status: "active" },
+      ],
+    ],
+  );
+  const app = await buildApp(
+    fakeDeps({ byTable, settings: fakeSettings({ rows: [{ key: "max_books_per_user", value: 3 }] }) }),
+  );
+  try {
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/library/books",
+      headers: DEV_BEARER,
+      payload: { bookId: NEW_BOOK_ID, targetNightlyPages: 12 },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = res.json() as { bookId: string; status: string; targetNightlyPages: number };
+    assert.equal(body.bookId, NEW_BOOK_ID);
+    assert.equal(body.status, "active");
+    assert.equal(body.targetNightlyPages, 12);
+  } finally {
+    await app.close();
+  }
+});
