@@ -23,10 +23,10 @@ import type { AuthUser } from "../types.js";
  * fall back to Gemini (the AI router also validates + falls back on failure). An
  * explicit `provider` override is honoured whenever that provider's key is set.
  */
-function chooseProvider(deps: Deps, requested?: "gemini" | "groq"): "gemini" | "groq" {
+function chooseProvider(deps: Deps, requested?: "gemini" | "groq" | "openrouter" | "ai_tutor_api"): "gemini" | "groq" {
   const { env } = deps.config;
   const has = (p: "gemini" | "groq") => (p === "gemini" ? env.GEMINI_API_KEY : env.GROQ_API_KEY).length > 0;
-  if (requested && has(requested)) return requested;
+  if ((requested === "gemini" || requested === "groq") && has(requested)) return requested;
   if (has("groq")) return "groq";
   if (has("gemini")) return "gemini";
   return "gemini"; // will fail the key check below with a clear error

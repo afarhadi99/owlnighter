@@ -3,6 +3,15 @@ import type { ZodType } from "zod";
 /** The four generation tasks the product runs. Routing keys off these. */
 export type AiTask = "book_grounding" | "plan_generation" | "quiz_generation" | "rewrite";
 
+/** All AI providers the product can route to. */
+export type ProviderName = "gemini" | "groq" | "openrouter" | "ai_tutor_api";
+
+/** Runtime credentials + model handed to an adapter at construction time. */
+export interface ProviderRuntimeConfig {
+  apiKey: string;
+  model: string;
+}
+
 export interface GenerateObjectOptions<T> {
   task: AiTask;
   /** Stable name for the schema — used for logging and Gemini responseSchema title. */
@@ -30,7 +39,7 @@ export interface Citation {
 
 export interface AiObjectResult<T> {
   data: T;
-  provider: "gemini" | "groq";
+  provider: ProviderName;
   model: string;
   citations: Citation[];
   /** How many provider calls it took to produce valid output (1 = first try). */
@@ -39,7 +48,7 @@ export interface AiObjectResult<T> {
 
 export interface AiTextResult {
   text: string;
-  provider: "gemini" | "groq";
+  provider: ProviderName;
   model: string;
 }
 
@@ -61,7 +70,7 @@ export interface AiRouter {
  * value + extract citations; the router owns routing and Zod validation.
  */
 export interface ProviderAdapter {
-  readonly name: "gemini" | "groq";
+  readonly name: ProviderName;
   /** Call the model, parse its JSON body, return the raw value + citations + model id. */
   generateObjectRaw(opts: GenerateObjectOptions<unknown>): Promise<{
     raw: unknown;

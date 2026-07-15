@@ -10,6 +10,9 @@ import type {
   ProviderAdapter,
 } from "./types.js";
 
+// Interim: only Gemini and Groq are actually wired up in this router (both the
+// `adapters` map and `hasProviderKey` are 2-way). A later task rewrites this
+// function body to be settings-driven across all 4 ProviderName values.
 type ProviderName = "gemini" | "groq";
 
 /**
@@ -39,9 +42,9 @@ function preferredProvider(opts: {
 }
 
 export function createAiRouter(env: Env): AiRouter {
-  const adapters: Record<ProviderName, ProviderAdapter> = {
+  const adapters: Record<"gemini" | "groq", ProviderAdapter> = {
     gemini: new GeminiAdapter(env),
-    groq: new GroqAdapter(env),
+    groq: new GroqAdapter({ apiKey: env.GROQ_API_KEY, model: env.GROQ_MODEL }),
   };
 
   /** Pick a provider that actually has a key, honoring the routing preference. */

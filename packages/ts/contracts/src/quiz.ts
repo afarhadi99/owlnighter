@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Confidence, QuizMode, Uuid } from "./common.js";
+import { AiProvider, Confidence, QuizMode, Uuid } from "./common.js";
 
 /** A single quiz question. Answer key stays server-side until scoring. */
 export const QuizQuestion = z.object({
@@ -19,7 +19,7 @@ export const QuizInstance = z.object({
   stepId: Uuid,
   quizMode: QuizMode,
   questions: z.array(QuizQuestion).min(1),
-  generatedByProvider: z.enum(["gemini", "groq"]),
+  generatedByProvider: AiProvider,
   generatedByModel: z.string(),
   confidence: Confidence,
 });

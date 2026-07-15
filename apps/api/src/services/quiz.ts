@@ -118,7 +118,9 @@ export async function generateStepQuiz(deps: Deps, user: AuthUser, stepId: strin
   const system = SYSTEM_PROMPT;
   const prompt = userPrompt(step, mode, req);
 
-  let generated: { data: GeneratedQuiz; provider: "gemini" | "groq"; model: string; attempts: number } | undefined;
+  let generated:
+    | { data: GeneratedQuiz; provider: "gemini" | "groq" | "openrouter" | "ai_tutor_api"; model: string; attempts: number }
+    | undefined;
   let lastErr: unknown;
   for (const provider of configured) {
     try {

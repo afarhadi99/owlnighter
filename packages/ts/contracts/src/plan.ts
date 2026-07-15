@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { BookIdentity } from "./book.js";
-import { Confidence, PacingMode, QuizMode, Uuid } from "./common.js";
+import { AiProvider, Confidence, PacingMode, QuizMode, Uuid } from "./common.js";
 
 /** One night's worth of reading in a plan. */
 export const PlanStep = z.object({
@@ -50,7 +50,7 @@ export const PlanGenerateRequest = z.object({
   maxMinutes: z.number().int().min(5).max(180).default(25),
   timezone: z.string().default("UTC"),
   /** Force a provider; otherwise routing rules decide. */
-  provider: z.enum(["gemini", "groq"]).optional(),
+  provider: AiProvider.optional(),
   /**
    * What to do when the caller already has a plan for this book:
    *  - "reuse"      : return the latest existing plan WITHOUT calling the AI
@@ -95,7 +95,7 @@ export type ListPlansResponse = z.infer<typeof ListPlansResponse>;
 export const PlanResponse = z.object({
   planId: Uuid,
   bookId: Uuid,
-  provider: z.enum(["gemini", "groq"]),
+  provider: AiProvider,
   providerModel: z.string(),
   planVersion: z.number().int(),
   pacingMode: PacingMode,

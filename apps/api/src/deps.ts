@@ -12,7 +12,7 @@ import { getConfig, type AppConfig } from "./config.js";
  */
 export interface GenerateObjectResult<T> {
   data: T;
-  provider: "gemini" | "groq";
+  provider: "gemini" | "groq" | "openrouter" | "ai_tutor_api";
   model: string;
   citations: Array<{ title: string; url: string; reason: string }>;
   attempts: number;
@@ -24,7 +24,7 @@ export interface GenerateObjectArgs<T> {
   schema: z.ZodType<T>;
   system: string;
   user: string;
-  provider?: "gemini" | "groq";
+  provider?: "gemini" | "groq" | "openrouter" | "ai_tutor_api";
   requireGrounding?: boolean;
   requireStrictSchema?: boolean;
 }
@@ -35,8 +35,8 @@ export interface AiRouter {
     task: string;
     system: string;
     user: string;
-    provider?: "gemini" | "groq";
-  }): Promise<{ text: string; provider: "gemini" | "groq"; model: string }>;
+    provider?: "gemini" | "groq" | "openrouter" | "ai_tutor_api";
+  }): Promise<{ text: string; provider: "gemini" | "groq" | "openrouter" | "ai_tutor_api"; model: string }>;
 }
 
 /** Everything a request handler might need, assembled once at boot. */

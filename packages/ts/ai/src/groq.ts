@@ -1,9 +1,9 @@
-import type { Env } from "@owlnighter/shared";
 import type {
   Citation,
   GenerateObjectOptions,
   GenerateTextOptions,
   ProviderAdapter,
+  ProviderRuntimeConfig,
   AiTextResult,
 } from "./types.js";
 
@@ -20,16 +20,16 @@ const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 export class GroqAdapter implements ProviderAdapter {
   readonly name = "groq" as const;
 
-  constructor(private readonly env: Env) {}
+  constructor(private readonly config: ProviderRuntimeConfig) {}
 
   private modelFor(override?: string): string {
-    return override ?? this.env.GROQ_MODEL;
+    return override ?? this.config.model;
   }
 
   private headers(): Record<string, string> {
     return {
       "content-type": "application/json",
-      authorization: `Bearer ${this.env.GROQ_API_KEY}`,
+      authorization: `Bearer ${this.config.apiKey}`,
     };
   }
 

@@ -6,7 +6,7 @@ export const Uuid = z.uuid();
 export const IsoDateTime = z.iso.datetime();
 export const IsoDate = z.iso.date();
 
-export const AiProvider = z.enum(["gemini", "groq"]);
+export const AiProvider = z.enum(["gemini", "groq", "openrouter", "ai_tutor_api"]);
 export type AiProvider = z.infer<typeof AiProvider>;
 
 export const PacingMode = z.enum(["gentle", "standard", "intensive"]);
