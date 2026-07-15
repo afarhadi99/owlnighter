@@ -4,6 +4,7 @@ import { createAiRouter } from "@owlnighter/ai";
 import { ensureTtsAsset, createInMemoryQueue } from "@owlnighter/jobs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getConfig, type AppConfig } from "./config.js";
+import { createAiSettingsReader } from "./services/ai-settings.js";
 
 /**
  * Structural type for the AI router we build against (public API of
@@ -61,7 +62,7 @@ export function buildDeps(): Deps {
 
   // The AI router needs env for keys/models; cast the runtime factory result to
   // our structural interface (the package exposes exactly this surface).
-  const ai = createAiRouter(env) as unknown as AiRouter;
+  const ai = createAiRouter(env, createAiSettingsReader(settings)) as unknown as AiRouter;
 
   // Supabase client is only usable when a service-role key is configured. When
   // absent we leave it undefined and auth degrades to the dev path (guarded by

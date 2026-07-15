@@ -79,3 +79,21 @@ export interface ProviderAdapter {
   }>;
   generateText(opts: GenerateTextOptions): Promise<AiTextResult>;
 }
+
+export interface AiTutorRuntimeConfig {
+  apiKey: string;
+  workflowIds: Partial<Record<AiTask, string>>;
+}
+
+/** What the router asks for on every call — always fresh (the settings-cache
+ * layer underneath owns the ~30s TTL), so admin edits apply without a restart. */
+export interface SettingsSnapshot {
+  groq: ProviderRuntimeConfig;
+  openrouter: ProviderRuntimeConfig;
+  aiTutorApi: AiTutorRuntimeConfig;
+  taskOverrides: Partial<Record<AiTask, ProviderName>>;
+}
+
+export interface SettingsReader {
+  snapshot(): Promise<SettingsSnapshot>;
+}

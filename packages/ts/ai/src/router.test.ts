@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { z } from "zod";
 import type { Env } from "@owlnighter/shared";
 import { createAiRouter } from "./router.js";
+import type { SettingsReader, SettingsSnapshot } from "./types.js";
 
 // Minimal Env with only what the router/adapters read.
 function fakeEnv(overrides: Partial<Env> = {}): Env {
@@ -13,6 +14,20 @@ function fakeEnv(overrides: Partial<Env> = {}): Env {
     GROQ_MODEL: "qwen-3.6-32b",
     ...overrides,
   } as Env;
+}
+
+function fakeSettings(overrides: Partial<SettingsSnapshot> = {}): SettingsReader {
+  return {
+    async snapshot(): Promise<SettingsSnapshot> {
+      return {
+        groq: { apiKey: "", model: "" },
+        openrouter: { apiKey: "", model: "" },
+        aiTutorApi: { apiKey: "", workflowIds: {} },
+        taskOverrides: {},
+        ...overrides,
+      };
+    },
+  };
 }
 
 const Schema = z.object({ answer: z.string() });
@@ -43,7 +58,7 @@ function geminiBody(obj: unknown) {
 test("groq quiz output validates on first try", async () => {
   const restore = scriptFetch([groqBody({ answer: "ok" })]);
   try {
-    const router = createAiRouter(fakeEnv());
+    const router = createAiRouter(fakeEnv(), fakeSettings());
     const res = await router.generateObject({
       task: "quiz_generation",
       schemaName: "Schema",
@@ -67,7 +82,7 @@ test("invalid groq output retries then falls back to gemini", async () => {
     geminiBody({ answer: "rescued" }),
   ]);
   try {
-    const router = createAiRouter(fakeEnv());
+    const router = createAiRouter(fakeEnv(), fakeSettings());
     const res = await router.generateObject({
       task: "quiz_generation",
       schemaName: "Schema",
@@ -86,7 +101,7 @@ test("invalid groq output retries then falls back to gemini", async () => {
 test("grounding requirement routes straight to gemini", async () => {
   const restore = scriptFetch([geminiBody({ answer: "grounded" })]);
   try {
-    const router = createAiRouter(fakeEnv());
+    const router = createAiRouter(fakeEnv(), fakeSettings());
     const res = await router.generateObject({
       task: "quiz_generation",
       schemaName: "Schema",
@@ -104,7 +119,7 @@ test("grounding requirement routes straight to gemini", async () => {
 test("missing groq key routes quiz to gemini", async () => {
   const restore = scriptFetch([geminiBody({ answer: "only-gemini" })]);
   try {
-    const router = createAiRouter(fakeEnv({ GROQ_API_KEY: "" }));
+    const router = createAiRouter(fakeEnv({ GROQ_API_KEY: "" }), fakeSettings());
     const res = await router.generateObject({
       task: "quiz_generation",
       schemaName: "Schema",
@@ -113,6 +128,31 @@ test("missing groq key routes quiz to gemini", async () => {
       user: "u",
     });
     assert.equal(res.provider, "gemini");
+  } finally {
+    restore();
+  }
+});
+
+test("task override routes quiz_generation to openrouter when configured", async () => {
+  // OpenRouter's response shape is OpenAI-compatible, identical to Groq's fixture.
+  const restore = scriptFetch([groqBody({ answer: "from-or" })]);
+  try {
+    const router = createAiRouter(
+      fakeEnv({ GROQ_API_KEY: "" }),
+      fakeSettings({
+        openrouter: { apiKey: "or-key", model: "some/model" },
+        taskOverrides: { quiz_generation: "openrouter" },
+      }),
+    );
+    const res = await router.generateObject({
+      task: "quiz_generation",
+      schemaName: "Schema",
+      schema: Schema,
+      system: "s",
+      user: "u",
+    });
+    assert.equal(res.provider, "openrouter");
+    assert.equal(res.data.answer, "from-or");
   } finally {
     restore();
   }

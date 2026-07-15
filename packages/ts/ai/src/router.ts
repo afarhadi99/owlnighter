@@ -1,78 +1,93 @@
-import { hasProviderKey, type Env } from "@owlnighter/shared";
+import type { Env } from "@owlnighter/shared";
 import { GeminiAdapter } from "./gemini.js";
 import { GroqAdapter } from "./groq.js";
+import { OpenRouterAdapter } from "./openrouter.js";
+import { AiTutorApiAdapter } from "./aiTutorApi.js";
 import type {
   AiObjectResult,
   AiRouter,
+  AiTask,
   AiTextResult,
   GenerateObjectOptions,
   GenerateTextOptions,
   ProviderAdapter,
+  ProviderName,
+  SettingsReader,
 } from "./types.js";
 
-// Interim: only Gemini and Groq are actually wired up in this router (both the
-// `adapters` map and `hasProviderKey` are 2-way). A later task rewrites this
-// function body to be settings-driven across all 4 ProviderName values.
-type ProviderName = "gemini" | "groq";
+/** Only these two tasks may be reassigned via ai_provider.task_override.* —
+ * book_grounding/plan_generation keep their hardcoded Gemini-first routing
+ * (native Search Grounding and schema-strictness are Gemini-only capabilities
+ * today; reassigning those tasks would silently break the honesty guarantees
+ * the rest of the app depends on). */
+const TASK_OVERRIDABLE: ReadonlySet<AiTask> = new Set(["quiz_generation", "rewrite"]);
 
-/**
- * Deterministic routing per the blueprint table:
- *  - grounding / strict schema / book identification / plan generation → Gemini
- *  - rewrite / quiz_generation (facts already exist) → Groq first (fast), fall back to Gemini
- */
-function preferredProvider(opts: {
-  task: GenerateObjectOptions<unknown>["task"];
-  preferLatency?: boolean;
-  requireGrounding?: boolean;
-  requireStrictSchema?: boolean;
-}): ProviderName {
+function preferredProvider(
+  opts: { task: AiTask; requireGrounding?: boolean; requireStrictSchema?: boolean },
+  taskOverride: ProviderName | undefined,
+): ProviderName {
   if (opts.requireGrounding || opts.requireStrictSchema) return "gemini";
+  if (taskOverride && TASK_OVERRIDABLE.has(opts.task)) return taskOverride;
   switch (opts.task) {
     case "book_grounding":
     case "plan_generation":
-      // Contract-critical + citation-bearing → Gemini owns these.
       return "gemini";
     case "rewrite":
     case "quiz_generation":
-      // Latency-sensitive, validated app-side → Groq first.
       return "groq";
     default:
       return "gemini";
   }
 }
 
-export function createAiRouter(env: Env): AiRouter {
-  const adapters: Record<"gemini" | "groq", ProviderAdapter> = {
-    gemini: new GeminiAdapter(env),
-    groq: new GroqAdapter({ apiKey: env.GROQ_API_KEY, model: env.GROQ_MODEL }),
-  };
+export function createAiRouter(env: Env, settings: SettingsReader): AiRouter {
+  const gemini = new GeminiAdapter(env);
 
-  /** Pick a provider that actually has a key, honoring the routing preference. */
-  function resolveProvider(pref: ProviderName): ProviderName {
-    if (hasProviderKey(env, pref)) return pref;
-    const other: ProviderName = pref === "gemini" ? "groq" : "gemini";
-    if (hasProviderKey(env, other)) return other;
-    throw new Error(
-      "No AI provider key configured. Set GEMINI_API_KEY and/or GROQ_API_KEY.",
-    );
+  async function adapterFor(name: ProviderName): Promise<{ adapter: ProviderAdapter; configured: boolean }> {
+    if (name === "gemini") {
+      return { adapter: gemini, configured: env.GEMINI_API_KEY.length > 0 };
+    }
+    const snap = await settings.snapshot();
+    if (name === "groq") {
+      const apiKey = snap.groq.apiKey || env.GROQ_API_KEY;
+      const model = snap.groq.model || env.GROQ_MODEL;
+      return { adapter: new GroqAdapter({ apiKey, model }), configured: apiKey.length > 0 };
+    }
+    if (name === "openrouter") {
+      return {
+        adapter: new OpenRouterAdapter({ apiKey: snap.openrouter.apiKey, model: snap.openrouter.model }),
+        configured: snap.openrouter.apiKey.length > 0 && snap.openrouter.model.length > 0,
+      };
+    }
+    return {
+      adapter: new AiTutorApiAdapter({ apiKey: snap.aiTutorApi.apiKey, workflowIds: snap.aiTutorApi.workflowIds }),
+      configured: snap.aiTutorApi.apiKey.length > 0,
+    };
+  }
+
+  /** Whatever the preferred provider is, fall back to Gemini once if it isn't
+   * itself Gemini. Generalizes the original 2-provider behavior (a Groq-first
+   * call falls back to Gemini; a Gemini-first call never falls back) to 4
+   * providers without changing that semantic. */
+  function order(pref: ProviderName): ProviderName[] {
+    return pref === "gemini" ? ["gemini"] : [pref, "gemini"];
   }
 
   return {
     async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<AiObjectResult<T>> {
-      const pref = preferredProvider(opts);
-      const start = resolveProvider(pref);
+      const snap = await settings.snapshot();
+      const override = TASK_OVERRIDABLE.has(opts.task) ? snap.taskOverrides[opts.task] : undefined;
+      const pref = preferredProvider(opts, override);
 
       let attempts = 0;
       let lastError: unknown;
+      let triedAny = false;
 
-      // Attempt order: try the chosen provider (with one retry), then — if we
-      // started on Groq — fall back to Gemini. Never return unvalidated data.
-      const order: ProviderName[] = start === "groq" ? ["groq", "gemini"] : ["gemini"];
-
-      for (const providerName of order) {
-        if (!hasProviderKey(env, providerName)) continue;
-        const adapter = adapters[providerName];
-        const maxTriesHere = providerName === start ? 2 : 1; // retry once on the primary
+      for (const providerName of order(pref)) {
+        const { adapter, configured } = await adapterFor(providerName);
+        if (!configured) continue;
+        triedAny = true;
+        const maxTriesHere = providerName === pref ? 2 : 1;
         for (let i = 0; i < maxTriesHere; i++) {
           attempts++;
           try {
@@ -93,6 +108,11 @@ export function createAiRouter(env: Env): AiRouter {
         }
       }
 
+      if (!triedAny) {
+        throw new Error(
+          "No AI provider is configured for this task. Configure a provider's API key in the admin panel's AI Providers page or the environment.",
+        );
+      }
       throw new Error(
         `generateObject exhausted providers for "${opts.schemaName}". Last error: ` +
           (lastError instanceof Error ? lastError.message : String(lastError)),
@@ -100,9 +120,16 @@ export function createAiRouter(env: Env): AiRouter {
     },
 
     async generateText(opts: GenerateTextOptions): Promise<AiTextResult> {
-      const pref = preferredProvider({ task: opts.task, preferLatency: opts.preferLatency });
-      const provider = resolveProvider(pref);
-      return adapters[provider].generateText(opts);
+      const snap = await settings.snapshot();
+      const override = TASK_OVERRIDABLE.has(opts.task) ? snap.taskOverrides[opts.task] : undefined;
+      const pref = preferredProvider({ task: opts.task }, override);
+      for (const name of order(pref)) {
+        const { adapter, configured } = await adapterFor(name);
+        if (configured) return adapter.generateText(opts);
+      }
+      throw new Error(
+        "No AI provider key configured. Set GEMINI_API_KEY and/or GROQ_API_KEY, or configure a provider in the admin panel.",
+      );
     },
   };
 }
