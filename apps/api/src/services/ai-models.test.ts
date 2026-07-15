@@ -39,6 +39,24 @@ test("groq catalog is unavailable with no key configured", async () => {
   await assert.rejects(() => getAiModels(deps, "groq"));
 });
 
+test("redacts the Groq API key out of an upstream error message", async () => {
+  const apiKey = "gk_super_secret_test_key";
+  const restore = scriptFetch({ error: { message: `Incorrect API key provided: ${apiKey}.` } }, 401);
+  try {
+    const deps = fakeDeps({ settings: fakeSettings({ rows: [{ key: "ai_provider.groq.api_key", value: apiKey }] }) });
+    await assert.rejects(
+      () => getAiModels(deps, "groq"),
+      (err: Error) => {
+        assert.ok(!err.message.includes(apiKey), `error message leaked the API key: ${err.message}`);
+        assert.ok(err.message.includes("[redacted]"), `expected redaction marker, got: ${err.message}`);
+        return true;
+      },
+    );
+  } finally {
+    restore();
+  }
+});
+
 test("fetches and normalizes OpenRouter models", async () => {
   const restore = scriptFetch({
     data: [

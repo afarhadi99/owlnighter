@@ -21,8 +21,9 @@ async function fetchGroqModels(apiKey: string): Promise<AiModelInfo[]> {
     headers: { authorization: `Bearer ${apiKey}` },
   });
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw unavailable(`Groq model catalog request failed (${res.status}): ${detail.slice(0, 300)}`);
+    const rawDetail = await res.text().catch(() => "");
+    const detail = apiKey ? rawDetail.replaceAll(apiKey, "[redacted]") : rawDetail;
+    throw unavailable(`Groq model catalog request failed (${res.status}): ${detail.slice(0, 500)}`);
   }
   const json = (await res.json()) as GroqModelsResponse;
   return (json.data ?? [])
@@ -34,7 +35,7 @@ async function fetchOpenRouterModels(): Promise<AiModelInfo[]> {
   const res = await fetch("https://openrouter.ai/api/v1/models");
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw unavailable(`OpenRouter model catalog request failed (${res.status}): ${detail.slice(0, 300)}`);
+    throw unavailable(`OpenRouter model catalog request failed (${res.status}): ${detail.slice(0, 500)}`);
   }
   const json = (await res.json()) as OpenRouterModelsResponse;
   return (json.data ?? [])
