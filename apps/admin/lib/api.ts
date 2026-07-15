@@ -338,7 +338,12 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
-      "content-type": "application/json",
+      // Only declare a JSON body when one is actually being sent — Fastify's
+      // JSON body parser rejects a bodyless request that claims
+      // "content-type: application/json" with "Body cannot be empty when
+      // content-type is set to 'application/json'" (hit live by every
+      // bodyless POST here: logout, account approve/reject).
+      ...(init?.body ? { "content-type": "application/json" } : {}),
       ...authHeader,
       ...init?.headers,
     },
