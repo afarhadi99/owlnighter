@@ -23,7 +23,7 @@ export const SETTINGS_SCHEMA = {
   "ai.gemini.model": z.string().min(1),
   "ai.deepgram.tts_model": z.string().min(1),
   "ai_provider.groq.api_key": z.string(),
-  "ai_provider.groq.model": z.string().min(1),
+  "ai_provider.groq.model": z.string(),
   "ai_provider.groq.system_prompt.plan_generation": z.string(),
   "ai_provider.groq.system_prompt.quiz_generation": z.string(),
   "ai_provider.openrouter.api_key": z.string(),

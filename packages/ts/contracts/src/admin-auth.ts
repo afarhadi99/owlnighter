@@ -8,9 +8,7 @@ export const AdminSignupRequest = z.object({
   email: z
     .string()
     .email()
-    .refine((e) => MYTSI_EMAIL.test(e), {
-      message: "Only @mytsi.org email addresses may request admin access.",
-    }),
+    .regex(MYTSI_EMAIL, { message: "Only @mytsi.org email addresses may request admin access." }),
   password: z.string().min(8).max(200),
 });
 export type AdminSignupRequest = z.infer<typeof AdminSignupRequest>;

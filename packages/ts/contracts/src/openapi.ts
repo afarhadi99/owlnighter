@@ -42,7 +42,7 @@ function operationFor(ep: EndpointDef, params: string[]) {
       name,
       in: "path",
       required: true,
-      schema: { type: "string", format: "uuid" },
+      schema: name === "id" ? { type: "string", format: "uuid" } : { type: "string" },
     }));
   }
 
