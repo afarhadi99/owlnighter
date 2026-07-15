@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/Badge";
-import { api, ApiRequestError } from "@/lib/api";
 import type { AdminPushTestResponse, PushType } from "@/lib/api";
 import { Spinner } from "@/components/Spinner";
 import { chime, error as errorChime } from "@/lib/sfx";
+import { sendTestPushAction } from "./actions";
 
 // The four notification kinds the push pipeline can render (mirrors the
 // ReminderKind / PushType union in @owlnighter/jobs).
@@ -29,20 +29,15 @@ export default function NotificationsPage() {
     setSubmitting(true);
     setError(null);
     setResult(null);
-    try {
-      const res = await api.sendTestPush(userId, type);
-      setResult(res);
+    const res = await sendTestPushAction(userId, type);
+    if (res.ok) {
+      setResult(res.data);
       chime();
-    } catch (err) {
-      setError(
-        err instanceof ApiRequestError
-          ? `${err.status}: ${err.body?.error.message ?? err.message}`
-          : (err as Error).message,
-      );
+    } else {
+      setError(res.error);
       errorChime();
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   }
 
   return (

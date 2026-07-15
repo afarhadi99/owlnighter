@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, ApiRequestError } from "@/lib/api";
 import type { BookSearchResponse, CatalogCandidate } from "@/lib/api";
+import { searchBooksAction } from "./actions";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable } from "@/components/DataTable";
 import { Badge } from "@/components/Badge";
@@ -22,23 +22,18 @@ export default function BooksPage() {
     setError(null);
     setLoading(true);
     setResult(null);
-    try {
-      const res = await api.searchBooks({
-        title: title.trim(),
-        author: author.trim() || undefined,
-        isbn13: isbn13.trim() || undefined,
-        limit: 15,
-      });
-      setResult(res);
-    } catch (err) {
-      setError(
-        err instanceof ApiRequestError
-          ? `${err.status}: ${err.body?.error.message ?? err.message}`
-          : (err as Error).message,
-      );
-    } finally {
-      setLoading(false);
+    const res = await searchBooksAction({
+      title: title.trim(),
+      author: author.trim() || undefined,
+      isbn13: isbn13.trim() || undefined,
+      limit: 15,
+    });
+    if (res.ok) {
+      setResult(res.data);
+    } else {
+      setError(res.error);
     }
+    setLoading(false);
   }
 
   return (

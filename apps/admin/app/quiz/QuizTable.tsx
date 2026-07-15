@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { DataTable } from "@/components/DataTable";
 import { Badge, quizModeTone, confidenceTone } from "@/components/Badge";
-import { api, ApiRequestError } from "@/lib/api";
 import type { AdminQuizListItem } from "@/lib/api";
 import { Spinner } from "@/components/Spinner";
 import { chime, error as errorChime } from "@/lib/sfx";
+import { invalidateQuizAction } from "./actions";
 
 export function QuizTable({ initialQuizzes }: { initialQuizzes: AdminQuizListItem[] }) {
   const [quizzes, setQuizzes] = useState(initialQuizzes);
@@ -19,26 +19,21 @@ export function QuizTable({ initialQuizzes }: { initialQuizzes: AdminQuizListIte
 
     setPendingId(quizId);
     setError(null);
-    try {
-      const res = await api.invalidateQuiz(quizId, { reason });
+    const res = await invalidateQuizAction(quizId, reason);
+    if (res.ok) {
       setQuizzes((prev) =>
         prev.map((q) =>
-          q.quizId === res.quizId
-            ? { ...q, invalidatedAt: res.invalidated ? new Date().toISOString() : null }
+          q.quizId === res.data.quizId
+            ? { ...q, invalidatedAt: res.data.invalidated ? new Date().toISOString() : null }
             : q,
         ),
       );
       chime();
-    } catch (err) {
-      setError(
-        err instanceof ApiRequestError
-          ? `${err.status}: ${err.body?.error.message ?? err.message}`
-          : (err as Error).message,
-      );
+    } else {
+      setError(res.error);
       errorChime();
-    } finally {
-      setPendingId(null);
     }
+    setPendingId(null);
   }
 
   return (

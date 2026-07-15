@@ -10,6 +10,8 @@
  * copy-paste from openapi.json stays valid.
  */
 
+import { getAdminToken } from "./session";
+
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
 
@@ -222,6 +224,77 @@ export interface AdminPushTestResponse {
   results: AdminPushTestTokenResult[];
 }
 
+// ---- admin-panel auth ----
+export interface AdminSignupRequest {
+  email: string;
+  password: string;
+}
+export interface AdminSignupResponse {
+  status: "pending";
+  message: string;
+}
+export interface AdminLoginRequest {
+  email: string;
+  password: string;
+}
+export interface AdminLoginResponse {
+  token: string;
+  expiresAt: string;
+  account: { id: string; email: string };
+}
+export interface AdminMeResponse {
+  id: string;
+  email: string;
+  isAdmin: boolean;
+}
+export type AdminAccountStatus = "pending" | "approved" | "rejected";
+export interface AdminPendingAccount {
+  [key: string]: unknown;
+  id: string;
+  email: string;
+  status: AdminAccountStatus;
+  createdAt: string;
+}
+export interface AdminPendingAccountsResponse {
+  accounts: AdminPendingAccount[];
+}
+export interface AdminAccountActionResponse {
+  id: string;
+  status: "approved" | "rejected";
+}
+
+// ---- settings ----
+export interface AdminSettingRow {
+  [key: string]: unknown;
+  key: string;
+  value: unknown;
+  isSecret: boolean;
+  configured?: boolean;
+  hint?: string;
+  updatedAt: string;
+}
+export interface AdminSettingsResponse {
+  settings: AdminSettingRow[];
+}
+export interface AdminUpdateSettingResponse {
+  key: string;
+  updatedAt: string;
+}
+
+// ---- AI model catalog ----
+export interface AiModelInfo {
+  [key: string]: unknown;
+  id: string;
+  name: string;
+  contextLength?: number;
+  pricing?: { prompt?: string; completion?: string };
+  modality?: string;
+}
+export interface AdminAiModelsResponse {
+  provider: "groq" | "openrouter";
+  models: AiModelInfo[];
+}
+
 // ---- library (support page lookups) ----
 export interface LibraryBook {
   id: string;
@@ -257,12 +330,16 @@ async function request<T>(
   path: string,
   init?: RequestInit & { admin?: boolean },
 ): Promise<T> {
+  const authHeader: Record<string, string> = {};
+  if (init?.admin) {
+    const token = await getAdminToken();
+    if (token) authHeader["authorization"] = `Bearer ${token}`;
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      // TODO wire real admin auth: forward a Supabase JWT / service token here.
-      ...(init?.admin ? { "x-admin": "1" } : {}),
+      ...authHeader,
       ...init?.headers,
     },
     cache: "no-store",
@@ -345,5 +422,61 @@ export const api = {
       admin: true,
       body: JSON.stringify({ userId, type } satisfies AdminPushTestRequest),
     });
+  },
+
+  adminSignup(body: AdminSignupRequest) {
+    return request<AdminSignupResponse>("/v1/admin/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminLogin(body: AdminLoginRequest) {
+    return request<AdminLoginResponse>("/v1/admin/auth/login", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminLogout() {
+    return request<void>("/v1/admin/auth/logout", { method: "POST", admin: true });
+  },
+
+  adminMe() {
+    return request<AdminMeResponse>("/v1/admin/auth/me", { admin: true });
+  },
+
+  adminListPendingAccounts() {
+    return request<AdminPendingAccountsResponse>("/v1/admin/accounts/pending", { admin: true });
+  },
+
+  adminApproveAccount(id: string) {
+    return request<AdminAccountActionResponse>(
+      `/v1/admin/accounts/${encodeURIComponent(id)}/approve`,
+      { method: "POST", admin: true },
+    );
+  },
+
+  adminRejectAccount(id: string) {
+    return request<AdminAccountActionResponse>(
+      `/v1/admin/accounts/${encodeURIComponent(id)}/reject`,
+      { method: "POST", admin: true },
+    );
+  },
+
+  adminGetSettings() {
+    return request<AdminSettingsResponse>("/v1/admin/settings", { admin: true });
+  },
+
+  adminPutSetting(key: string, value: unknown) {
+    return request<AdminUpdateSettingResponse>(`/v1/admin/settings/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      admin: true,
+      body: JSON.stringify({ value }),
+    });
+  },
+
+  adminGetAiModels(provider: "groq" | "openrouter") {
+    return request<AdminAiModelsResponse>(`/v1/admin/ai/models?provider=${provider}`, { admin: true });
   },
 };

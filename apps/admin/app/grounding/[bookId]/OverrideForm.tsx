@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api, ApiRequestError } from "@/lib/api";
+import { overrideBookAction } from "./actions";
 
 // POST /v1/admin/books/:id/override — manual correction / trust lock.
 // fieldOverrides is a free-form record in the contract, so we take raw JSON
@@ -30,20 +30,13 @@ export function OverrideForm({ bookId }: { bookId: string }) {
     }
 
     setSubmitting(true);
-    try {
-      await api.overrideBook(bookId, { fieldOverrides, trustLock, reason });
+    const res = await overrideBookAction(bookId, { fieldOverrides, trustLock, reason });
+    if (res.ok) {
       setStatus({ kind: "ok", msg: "Override applied." });
-    } catch (err) {
-      setStatus({
-        kind: "err",
-        msg:
-          err instanceof ApiRequestError
-            ? `${err.status}: ${err.body?.error.message ?? err.message}`
-            : (err as Error).message,
-      });
-    } finally {
-      setSubmitting(false);
+    } else {
+      setStatus({ kind: "err", msg: res.error });
     }
+    setSubmitting(false);
   }
 
   return (

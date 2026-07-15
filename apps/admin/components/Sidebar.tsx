@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { OwlLogo } from "@/components/OwlLogo";
 import { SFX_MUTE_EVENT, isMuted, setMuted } from "@/lib/sfx";
+import { logoutAction } from "@/lib/auth-actions";
 
 // Modules mirror the blueprint's "Admin dashboard feature set" table.
 const NAV: { href: string; label: string; hint: string }[] = [
@@ -17,6 +18,9 @@ const NAV: { href: string; label: string; hint: string }[] = [
   { href: "/notifications", label: "Notifications", hint: "templates · tokens" },
   { href: "/support", label: "User Support", hint: "streak · plan reset" },
   { href: "/model-ops", label: "Model Operations", hint: "routing · fallback" },
+  { href: "/settings", label: "Settings", hint: "limits · flags · catalog" },
+  { href: "/ai-providers", label: "AI Providers", hint: "keys · models · prompts" },
+  { href: "/accounts", label: "Admin Accounts", hint: "pending approvals" },
 ];
 
 export function Sidebar() {
@@ -35,6 +39,8 @@ export function Sidebar() {
     setMuted(next);
     setMutedState(next);
   }
+
+  if (pathname === "/login" || pathname === "/signup") return null;
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-ink-800">
@@ -89,6 +95,14 @@ export function Sidebar() {
             {muted ? "🔇" : "🔔"}
           </button>
         </div>
+        <form action={logoutAction} className="mt-2">
+          <button
+            type="submit"
+            className="w-full rounded border border-line px-2 py-1 text-[11px] text-muted transition-colors hover:border-bad hover:text-bad"
+          >
+            Log out
+          </button>
+        </form>
       </div>
     </aside>
   );
