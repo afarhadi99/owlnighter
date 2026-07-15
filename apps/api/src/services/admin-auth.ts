@@ -23,7 +23,9 @@ async function execOne<T>(deps: Deps, query: ReturnType<typeof sql>): Promise<T 
 }
 
 async function hashPassword(deps: Deps, password: string): Promise<string> {
-  const row = await execOne<{ hash: string }>(deps, sql`select crypt(${password}, gen_salt('bf')) as hash`);
+  // Explicit bcrypt cost factor: pgcrypto's gen_salt('bf') defaults iter_count to
+  // 6 when omitted, well below the ~10-12 considered an adequate minimum today.
+  const row = await execOne<{ hash: string }>(deps, sql`select crypt(${password}, gen_salt('bf', 12)) as hash`);
   if (!row) throw new Error("Password hashing failed.");
   return row.hash;
 }
@@ -37,6 +39,12 @@ async function verifyPassword(deps: Deps, password: string, storedHash: string):
   );
   return row?.valid ?? false;
 }
+
+// A fixed, valid bcrypt hash (its own password is irrelevant — it's never compared
+// against real input) so the "no such account" path below runs a comparable-cost
+// crypt() call to the "wrong password" path, closing a timing side-channel that
+// would otherwise let an attacker enumerate valid emails by response latency.
+const DUMMY_HASH = "$2a$12$CwTycUXWue0Thq9StjUM0uJ8i54STe.pxGnwWnKM4nfPjxxfoKGty";
 
 export async function signup(deps: Deps, req: AdminSignupRequest): Promise<AdminSignupResponse> {
   const existing = await deps.db
@@ -66,7 +74,10 @@ export async function login(deps: Deps, req: AdminLoginRequest): Promise<AdminLo
     .where(sql`lower(${schema.adminAccounts.email}) = lower(${req.email})`)
     .limit(1);
   const account = rows[0];
-  if (!account) throw unauthorized("Invalid email or password.");
+  if (!account) {
+    await verifyPassword(deps, req.password, DUMMY_HASH); // burn comparable time, ignore result
+    throw unauthorized("Invalid email or password.");
+  }
 
   const ok = await verifyPassword(deps, req.password, account.passwordHash);
   if (!ok) throw unauthorized("Invalid email or password.");

@@ -6,7 +6,9 @@ import { hashToken } from "../utils/admin-crypto.js";
 import { unauthorized } from "./errors.js";
 import type { AdminPrincipal } from "../types.js";
 
-function bearer(req: FastifyRequest): string | undefined {
+/** Parse a `Bearer <token>` Authorization header. Shared by the admin_panel
+ * guard and the admin-auth routes (e.g. logout) that need the raw token. */
+export function bearer(req: FastifyRequest): string | undefined {
   const header = req.headers.authorization;
   if (!header) return undefined;
   const [scheme, token] = header.split(" ");
