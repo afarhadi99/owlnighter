@@ -34,7 +34,8 @@ function operationFor(ep: EndpointDef, params: string[]) {
     tags: [ep.tag],
   };
 
-  if (ep.auth !== "none") op["security"] = [{ bearerAuth: [] }];
+  if (ep.auth === "admin_panel") op["security"] = [{ adminBearerAuth: [] }];
+  else if (ep.auth !== "none") op["security"] = [{ bearerAuth: [] }];
 
   if (params.length > 0) {
     op["parameters"] = params.map((name) => ({
@@ -91,6 +92,7 @@ export function buildOpenApiDocument(version = "0.1.0"): Record<string, unknown>
     components: {
       securitySchemes: {
         bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
+        adminBearerAuth: { type: "http", scheme: "bearer", bearerFormat: "opaque admin session token" },
       },
     },
     paths,

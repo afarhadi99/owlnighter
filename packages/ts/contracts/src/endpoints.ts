@@ -35,6 +35,21 @@ import {
   TtsGenerateResponse,
 } from "./misc.js";
 import { MyStatsResponse } from "./stats.js";
+import {
+  AdminAccountActionResponse,
+  AdminLoginRequest,
+  AdminLoginResponse,
+  AdminMeResponse,
+  AdminPendingAccountsResponse,
+  AdminSignupRequest,
+  AdminSignupResponse,
+} from "./admin-auth.js";
+import {
+  AdminAiModelsResponse,
+  AdminSettingsResponse,
+  AdminUpdateSettingRequest,
+  AdminUpdateSettingResponse,
+} from "./settings.js";
 
 export type HttpMethod = "get" | "post" | "put" | "delete";
 
@@ -45,7 +60,7 @@ export interface EndpointDef {
   operationId: string;
   summary: string;
   tag: string;
-  auth: "user" | "admin" | "none";
+  auth: "user" | "admin" | "admin_panel" | "none";
   request?: z.ZodType;
   response?: z.ZodType;
 }
@@ -195,7 +210,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminGetGrounding",
     summary: "Inspect grounding sources, facts, and diffs for a book.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     response: AdminGroundingResponse,
   },
   {
@@ -204,7 +219,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminOverrideBook",
     summary: "Manual correction / trust lock on a book's grounded fields.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     request: AdminOverrideRequest,
   },
   {
@@ -213,7 +228,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminGetMetrics",
     summary: "Dashboard tiles: grounding buckets, quiz pass rate, TTS assets, book count.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     response: AdminMetricsResponse,
   },
   {
@@ -222,7 +237,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminGetTts",
     summary: "List cached TTS assets for the cache inspector.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     response: AdminTtsResponse,
   },
   {
@@ -231,7 +246,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminInvalidateQuiz",
     summary: "Mark a quiz invalid so it is not reused; records a reason.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     request: AdminQuizInvalidateRequest,
     response: AdminQuizInvalidateResponse,
   },
@@ -241,7 +256,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminListPlans",
     summary: "List reading plans (newest first) with derived step counts. `?limit=`.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     response: AdminPlansResponse,
   },
   {
@@ -250,7 +265,7 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminListQuizzes",
     summary: "List quiz instances with derived question counts. `?stepId=&limit=`.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     response: AdminQuizzesResponse,
   },
   {
@@ -259,8 +274,100 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     operationId: "adminTestPush",
     summary: "Send a test push of a given type to a user's registered device tokens.",
     tag: "admin",
-    auth: "admin",
+    auth: "admin_panel",
     request: AdminPushTestRequest,
     response: AdminPushTestResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/auth/signup",
+    operationId: "adminSignup",
+    summary: "Request an admin-panel account (@mytsi.org only; requires approval).",
+    tag: "admin-auth",
+    auth: "none",
+    request: AdminSignupRequest,
+    response: AdminSignupResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/auth/login",
+    operationId: "adminLogin",
+    summary: "Log in to the admin panel; returns an opaque session token.",
+    tag: "admin-auth",
+    auth: "none",
+    request: AdminLoginRequest,
+    response: AdminLoginResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/auth/logout",
+    operationId: "adminLogout",
+    summary: "Revoke the caller's admin session.",
+    tag: "admin-auth",
+    auth: "admin_panel",
+  },
+  {
+    method: "get",
+    path: "/v1/admin/auth/me",
+    operationId: "adminMe",
+    summary: "Resolve the current admin-panel session.",
+    tag: "admin-auth",
+    auth: "admin_panel",
+    response: AdminMeResponse,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/accounts/pending",
+    operationId: "adminListPendingAccounts",
+    summary: "List admin-panel accounts awaiting approval.",
+    tag: "admin-auth",
+    auth: "admin_panel",
+    response: AdminPendingAccountsResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/accounts/:id/approve",
+    operationId: "adminApproveAccount",
+    summary: "Approve a pending admin-panel account.",
+    tag: "admin-auth",
+    auth: "admin_panel",
+    response: AdminAccountActionResponse,
+  },
+  {
+    method: "post",
+    path: "/v1/admin/accounts/:id/reject",
+    operationId: "adminRejectAccount",
+    summary: "Reject a pending admin-panel account.",
+    tag: "admin-auth",
+    auth: "admin_panel",
+    response: AdminAccountActionResponse,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/settings",
+    operationId: "adminGetSettings",
+    summary: "List every admin-editable setting (secrets masked).",
+    tag: "settings",
+    auth: "admin_panel",
+    response: AdminSettingsResponse,
+  },
+  {
+    method: "put",
+    path: "/v1/admin/settings/:key",
+    operationId: "adminPutSetting",
+    summary: "Update one setting by key, validated against its per-key schema.",
+    tag: "settings",
+    auth: "admin_panel",
+    request: AdminUpdateSettingRequest,
+    response: AdminUpdateSettingResponse,
+  },
+  {
+    method: "get",
+    path: "/v1/admin/ai/models",
+    operationId: "adminGetAiModels",
+    summary: "Live model catalog for a given provider. `?provider=groq|openrouter`.",
+    tag: "settings",
+    auth: "admin_panel",
+    response: AdminAiModelsResponse,
   },
 ] as const;
