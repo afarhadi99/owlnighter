@@ -1,5 +1,5 @@
 // Idempotent upsert of the 3 pre-approved admin-panel accounts.
-// Usage: DATABASE_URL=... node scripts/seed-admin-accounts.mjs
+// Usage: DATABASE_URL=... SEED_ADMIN_PASSWORD_RCOHEN=... SEED_ADMIN_PASSWORD_NKUKAJ=... SEED_ADMIN_PASSWORD_AFARHADI=... node scripts/seed-admin-accounts.mjs
 import postgres from "postgres";
 
 const url = process.env.DATABASE_URL;
@@ -8,10 +8,19 @@ if (!url) {
   process.exit(1);
 }
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`${name} is required (set it in your local .env, never commit real values)`);
+    process.exit(1);
+  }
+  return value;
+}
+
 const ACCOUNTS = [
-  { email: "rcohen@mytsi.org", password: "REDACTED_PASSWORD" },
-  { email: "nkukaj@mytsi.org", password: "REDACTED_PASSWORD" },
-  { email: "afarhadi@mytsi.org", password: "REDACTED_PASSWORD" },
+  { email: "rcohen@mytsi.org", password: requireEnv("SEED_ADMIN_PASSWORD_RCOHEN") },
+  { email: "nkukaj@mytsi.org", password: requireEnv("SEED_ADMIN_PASSWORD_NKUKAJ") },
+  { email: "afarhadi@mytsi.org", password: requireEnv("SEED_ADMIN_PASSWORD_AFARHADI") },
 ];
 
 const sql = postgres(url, { max: 1 });
