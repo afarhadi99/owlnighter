@@ -14,6 +14,12 @@ function requireEnv(name) {
     console.error(`${name} is required (set it in your local .env, never commit real values)`);
     process.exit(1);
   }
+  if (value === "changeme") {
+    console.error(
+      `${name} is still set to the .env.example placeholder "changeme" — replace it with a real password before seeding admin accounts`,
+    );
+    process.exit(1);
+  }
   return value;
 }
 
