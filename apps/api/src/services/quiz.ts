@@ -19,6 +19,8 @@ import type { AuthUser } from "../types.js";
 /**
  * Model output for quiz generation. Carries the answer key + explanation, which
  * NEVER leave the server — the QuizInstance returned to the client omits them.
+ * NOTE: mirrored by docs/ai-tutor-workflows/build.mjs — run
+ * `node docs/ai-tutor-workflows/build.mjs` after changing this shape.
  */
 const GeneratedQuiz = z.object({
   questions: z
