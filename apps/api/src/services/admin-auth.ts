@@ -129,10 +129,12 @@ export async function listPendingAccounts(deps: Deps): Promise<AdminPendingAccou
   };
 }
 
-export async function approveAccount(
+async function setAccountStatus(
   deps: Deps,
   admin: AdminPrincipal,
   accountId: string,
+  status: "approved" | "rejected",
+  extra: Partial<typeof schema.adminAccounts.$inferInsert> = {},
 ): Promise<AdminAccountActionResponse> {
   const rows = await deps.db
     .select({ id: schema.adminAccounts.id })
@@ -140,27 +142,26 @@ export async function approveAccount(
     .where(eq(schema.adminAccounts.id, accountId))
     .limit(1);
   if (!rows[0]) throw notFound("Account not found.");
+  const now = new Date();
   await deps.db
     .update(schema.adminAccounts)
-    .set({ status: "approved", isAdmin: true, approvedBy: admin.id, approvedAt: new Date(), updatedAt: new Date() })
+    .set({ status, approvedBy: admin.id, approvedAt: now, updatedAt: now, ...extra })
     .where(eq(schema.adminAccounts.id, accountId));
-  return { id: accountId, status: "approved" };
+  return { id: accountId, status };
 }
 
-export async function rejectAccount(
+export function approveAccount(
   deps: Deps,
   admin: AdminPrincipal,
   accountId: string,
 ): Promise<AdminAccountActionResponse> {
-  const rows = await deps.db
-    .select({ id: schema.adminAccounts.id })
-    .from(schema.adminAccounts)
-    .where(eq(schema.adminAccounts.id, accountId))
-    .limit(1);
-  if (!rows[0]) throw notFound("Account not found.");
-  await deps.db
-    .update(schema.adminAccounts)
-    .set({ status: "rejected", approvedBy: admin.id, approvedAt: new Date(), updatedAt: new Date() })
-    .where(eq(schema.adminAccounts.id, accountId));
-  return { id: accountId, status: "rejected" };
+  return setAccountStatus(deps, admin, accountId, "approved", { isAdmin: true });
+}
+
+export function rejectAccount(
+  deps: Deps,
+  admin: AdminPrincipal,
+  accountId: string,
+): Promise<AdminAccountActionResponse> {
+  return setAccountStatus(deps, admin, accountId, "rejected");
 }
