@@ -40,3 +40,9 @@ insert into public.app_settings (key, value, is_secret) values
   ('ai_provider.task_override.quiz_generation', 'null'::jsonb, false),
   ('ai_provider.task_override.rewrite', 'null'::jsonb, false)
 on conflict (key) do nothing;
+
+alter table public.app_settings enable row level security;
+-- No policies: this table is only ever touched via the service-role-backed
+-- Fastify API, never a client-side Supabase session. Default-deny is
+-- defense-in-depth, matching the existing pattern in 0002_rls.sql and
+-- 0004_admin_accounts.sql.
