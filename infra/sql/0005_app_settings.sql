@@ -21,7 +21,7 @@ insert into public.app_settings (key, value, is_secret) values
   ('grounding.auto_accept', '0.85'::jsonb, false),
   ('grounding.review_floor', '0.60'::jsonb, false),
   ('catalog.open_library_base_url', '"https://openlibrary.org"'::jsonb, false),
-  ('catalog.google_books_api_key', 'null'::jsonb, true),
+  ('catalog.google_books_api_key', '""'::jsonb, true),
   ('ai.gemini.model', '"gemini-3.5-flash"'::jsonb, false),
   ('ai.deepgram.tts_model', '"aura-2-thalia-en"'::jsonb, false),
   ('ai_provider.groq.api_key', '""'::jsonb, true),
