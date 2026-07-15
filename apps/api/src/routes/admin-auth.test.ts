@@ -224,31 +224,27 @@ test("logout is idempotent when the session is already gone", async () => {
   await assert.doesNotReject(() => logout(deps, "some-token-that-does-not-exist"));
 });
 
-test("logout invalidates a live session: /me 401s afterward with the same token", async () => {
+test("logout() deletes the session row from admin_sessions", async () => {
   const { schema } = await import("@owlnighter/db");
-  const accountId = "aaaaaaaa-0000-4000-8000-000000000009";
-  const byTable = tableRows(
-    [schema.adminSessions, [{ adminAccountId: accountId, expiresAt: new Date(Date.now() + 86_400_000) }]],
-    [schema.adminAccounts, [{ id: accountId, email: "e@mytsi.org", isAdmin: true, status: "approved" }]],
-  );
-  const app = await buildApp(fakeDeps({ byTable }));
-  const authHeader = { authorization: "Bearer live-session-token" };
-  try {
-    const meBefore = await app.inject({ method: "GET", url: "/v1/admin/auth/me", headers: authHeader });
-    assert.equal(meBefore.statusCode, 200);
+  const { logout } = await import("../services/admin-auth.js");
+  const deps = fakeDeps();
 
-    const logoutRes = await app.inject({ method: "POST", url: "/v1/admin/auth/logout", headers: authHeader });
-    assert.equal(logoutRes.statusCode, 204);
+  // The fake db rig's delete() is a no-op that can't model a real WHERE-scoped
+  // delete, so the only way to meaningfully verify logout() targets the right
+  // table is to spy on deps.db.delete's argument directly, rather than trying
+  // to observe an after-effect through a follow-up read. Cast to a loosely
+  // typed view for the spy — the real Db type's delete() is a generic
+  // overload that doesn't accept `unknown`, but the fake rig's runtime
+  // implementation is happy to take it.
+  let deletedTable: unknown;
+  const dbSpy = deps.db as unknown as { delete: (table: unknown) => unknown };
+  const originalDelete = dbSpy.delete.bind(dbSpy);
+  dbSpy.delete = (table: unknown) => {
+    deletedTable = table;
+    return originalDelete(table);
+  };
 
-    // The fake db rig's delete() doesn't mutate byTable (it can't model a real
-    // WHERE-scoped delete), so simulate the row actually being gone the way a
-    // real DELETE would leave it. The prior logout call still genuinely
-    // exercised extracting + hashing the same bearer token the guard validated.
-    byTable.set(schema.adminSessions, []);
+  await logout(deps, "some-token-value");
 
-    const meAfter = await app.inject({ method: "GET", url: "/v1/admin/auth/me", headers: authHeader });
-    assert.equal(meAfter.statusCode, 401);
-  } finally {
-    await app.close();
-  }
+  assert.equal(deletedTable, schema.adminSessions);
 });
