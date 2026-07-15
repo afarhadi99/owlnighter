@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "migrate": "node ./scripts/apply-sql.mjs"
+    "migrate": "node ./scripts/apply-sql.mjs",
+    "seed:admin": "node ./scripts/seed-admin-accounts.mjs"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.3",
