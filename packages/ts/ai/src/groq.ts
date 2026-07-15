@@ -6,6 +6,7 @@ import type {
   ProviderRuntimeConfig,
   AiTextResult,
 } from "./types.js";
+import { postChatCompletion } from "./openaiCompatible.js";
 
 const ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -26,13 +27,6 @@ export class GroqAdapter implements ProviderAdapter {
     return override ?? this.config.model;
   }
 
-  private headers(): Record<string, string> {
-    return {
-      "content-type": "application/json",
-      authorization: `Bearer ${this.config.apiKey}`,
-    };
-  }
-
   async generateObjectRaw(opts: GenerateObjectOptions<unknown>): Promise<{
     raw: unknown;
     citations: Citation[];
@@ -42,23 +36,19 @@ export class GroqAdapter implements ProviderAdapter {
     // The word "JSON" must appear in the prompt for json_object mode; make it explicit.
     const system = `${opts.system}\n\nRespond with a single valid JSON object only. No prose, no markdown fences.`;
 
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({
+    const json = await postChatCompletion(
+      ENDPOINT,
+      this.config.apiKey,
+      {
         model,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
           { role: "user", content: opts.user },
         ],
-      }),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Groq generateObject failed (${res.status}): ${detail.slice(0, 500)}`);
-    }
-    const json = (await res.json()) as GroqResponse;
+      },
+      "Groq generateObject",
+    );
     const content = json.choices?.[0]?.message?.content ?? "";
     if (!content.trim()) throw new Error("Groq returned an empty message.");
     return { raw: JSON.parse(content), citations: [], model };
@@ -66,27 +56,19 @@ export class GroqAdapter implements ProviderAdapter {
 
   async generateText(opts: GenerateTextOptions): Promise<AiTextResult> {
     const model = this.modelFor(opts.model);
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({
+    const json = await postChatCompletion(
+      ENDPOINT,
+      this.config.apiKey,
+      {
         model,
         messages: [
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
         ],
-      }),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Groq generateText failed (${res.status}): ${detail.slice(0, 500)}`);
-    }
-    const json = (await res.json()) as GroqResponse;
+      },
+      "Groq generateText",
+    );
     const text = json.choices?.[0]?.message?.content ?? "";
     return { text, provider: "groq", model };
   }
-}
-
-interface GroqResponse {
-  choices?: Array<{ message?: { content?: string } }>;
 }

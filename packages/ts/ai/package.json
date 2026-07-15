@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Provider abstraction (Gemini + Groq) with deterministic routing and a validate-and-retry loop.",
+  "description": "Provider abstraction (Gemini, Groq, OpenRouter, AI Tutor API) with settings-driven routing and a validate-and-retry loop.",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

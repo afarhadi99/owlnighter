@@ -44,25 +44,34 @@ export function createAiRouter(env: Env, settings: SettingsReader): AiRouter {
   const gemini = new GeminiAdapter(env);
 
   async function adapterFor(name: ProviderName): Promise<{ adapter: ProviderAdapter; configured: boolean }> {
-    if (name === "gemini") {
-      return { adapter: gemini, configured: env.GEMINI_API_KEY.length > 0 };
+    switch (name) {
+      case "gemini":
+        return { adapter: gemini, configured: env.GEMINI_API_KEY.length > 0 };
+      case "groq": {
+        const snap = await settings.snapshot();
+        const apiKey = snap.groq.apiKey || env.GROQ_API_KEY;
+        const model = snap.groq.model || env.GROQ_MODEL;
+        return { adapter: new GroqAdapter({ apiKey, model }), configured: apiKey.length > 0 };
+      }
+      case "openrouter": {
+        const snap = await settings.snapshot();
+        return {
+          adapter: new OpenRouterAdapter({ apiKey: snap.openrouter.apiKey, model: snap.openrouter.model }),
+          configured: snap.openrouter.apiKey.length > 0 && snap.openrouter.model.length > 0,
+        };
+      }
+      case "ai_tutor_api": {
+        const snap = await settings.snapshot();
+        return {
+          adapter: new AiTutorApiAdapter({ apiKey: snap.aiTutorApi.apiKey, workflowIds: snap.aiTutorApi.workflowIds }),
+          configured: snap.aiTutorApi.apiKey.length > 0,
+        };
+      }
+      default: {
+        const _exhaustive: never = name;
+        throw new Error(`Unknown provider: ${_exhaustive}`);
+      }
     }
-    const snap = await settings.snapshot();
-    if (name === "groq") {
-      const apiKey = snap.groq.apiKey || env.GROQ_API_KEY;
-      const model = snap.groq.model || env.GROQ_MODEL;
-      return { adapter: new GroqAdapter({ apiKey, model }), configured: apiKey.length > 0 };
-    }
-    if (name === "openrouter") {
-      return {
-        adapter: new OpenRouterAdapter({ apiKey: snap.openrouter.apiKey, model: snap.openrouter.model }),
-        configured: snap.openrouter.apiKey.length > 0 && snap.openrouter.model.length > 0,
-      };
-    }
-    return {
-      adapter: new AiTutorApiAdapter({ apiKey: snap.aiTutorApi.apiKey, workflowIds: snap.aiTutorApi.workflowIds }),
-      configured: snap.aiTutorApi.apiKey.length > 0,
-    };
   }
 
   /** Whatever the preferred provider is, fall back to Gemini once if it isn't

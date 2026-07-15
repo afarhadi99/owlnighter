@@ -6,6 +6,7 @@ import type {
   ProviderAdapter,
   ProviderRuntimeConfig,
 } from "./types.js";
+import { postChatCompletion } from "./openaiCompatible.js";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -21,13 +22,6 @@ export class OpenRouterAdapter implements ProviderAdapter {
 
   constructor(private readonly config: ProviderRuntimeConfig) {}
 
-  private headers(): Record<string, string> {
-    return {
-      "content-type": "application/json",
-      authorization: `Bearer ${this.config.apiKey}`,
-    };
-  }
-
   async generateObjectRaw(opts: GenerateObjectOptions<unknown>): Promise<{
     raw: unknown;
     citations: Citation[];
@@ -36,23 +30,19 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const model = opts.model ?? this.config.model;
     const system = `${opts.system}\n\nRespond with a single valid JSON object only. No prose, no markdown fences.`;
 
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({
+    const json = await postChatCompletion(
+      ENDPOINT,
+      this.config.apiKey,
+      {
         model,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
           { role: "user", content: opts.user },
         ],
-      }),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`OpenRouter generateObject failed (${res.status}): ${detail.slice(0, 500)}`);
-    }
-    const json = (await res.json()) as OpenRouterResponse;
+      },
+      "OpenRouter generateObject",
+    );
     const content = json.choices?.[0]?.message?.content ?? "";
     if (!content.trim()) throw new Error("OpenRouter returned an empty message.");
     return { raw: JSON.parse(content), citations: [], model };
@@ -60,27 +50,19 @@ export class OpenRouterAdapter implements ProviderAdapter {
 
   async generateText(opts: GenerateTextOptions): Promise<AiTextResult> {
     const model = opts.model ?? this.config.model;
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({
+    const json = await postChatCompletion(
+      ENDPOINT,
+      this.config.apiKey,
+      {
         model,
         messages: [
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
         ],
-      }),
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`OpenRouter generateText failed (${res.status}): ${detail.slice(0, 500)}`);
-    }
-    const json = (await res.json()) as OpenRouterResponse;
+      },
+      "OpenRouter generateText",
+    );
     const text = json.choices?.[0]?.message?.content ?? "";
     return { text, provider: "openrouter", model };
   }
-}
-
-interface OpenRouterResponse {
-  choices?: Array<{ message?: { content?: string } }>;
 }

@@ -49,8 +49,3 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   cached = parsed.data;
   return cached;
 }
-
-/** Whether a provider key is actually configured. */
-export function hasProviderKey(env: Env, provider: "gemini" | "groq"): boolean {
-  return provider === "gemini" ? env.GEMINI_API_KEY.length > 0 : env.GROQ_API_KEY.length > 0;
-}

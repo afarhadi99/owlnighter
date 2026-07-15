@@ -32,19 +32,31 @@ function fakeSettings(overrides: Partial<SettingsSnapshot> = {}): SettingsReader
 
 const Schema = z.object({ answer: z.string() });
 
-/** Swap global fetch with a scripted sequence of JSON bodies. */
-function scriptFetch(bodies: unknown[]): () => void {
+interface FetchCall {
+  url: string;
+  init: RequestInit;
+}
+
+/** Swap global fetch with a scripted sequence of JSON bodies. Also records
+ * every call's (url, init) so tests can assert on what was actually sent
+ * (e.g. which API key ended up in the Authorization header). */
+function scriptFetch(bodies: unknown[]): { restore: () => void; calls: FetchCall[] } {
   const original = globalThis.fetch;
+  const calls: FetchCall[] = [];
   let i = 0;
-  globalThis.fetch = (async () => {
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(url), init: init ?? {} });
     const body = bodies[Math.min(i++, bodies.length - 1)];
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
   }) as typeof fetch;
-  return () => {
-    globalThis.fetch = original;
+  return {
+    restore: () => {
+      globalThis.fetch = original;
+    },
+    calls,
   };
 }
 
@@ -56,7 +68,7 @@ function geminiBody(obj: unknown) {
 }
 
 test("groq quiz output validates on first try", async () => {
-  const restore = scriptFetch([groqBody({ answer: "ok" })]);
+  const { restore } = scriptFetch([groqBody({ answer: "ok" })]);
   try {
     const router = createAiRouter(fakeEnv(), fakeSettings());
     const res = await router.generateObject({
@@ -76,7 +88,7 @@ test("groq quiz output validates on first try", async () => {
 
 test("invalid groq output retries then falls back to gemini", async () => {
   // groq bad, groq bad (retry), gemini good.
-  const restore = scriptFetch([
+  const { restore } = scriptFetch([
     groqBody({ wrong: 1 }),
     groqBody({ wrong: 2 }),
     geminiBody({ answer: "rescued" }),
@@ -99,7 +111,7 @@ test("invalid groq output retries then falls back to gemini", async () => {
 });
 
 test("grounding requirement routes straight to gemini", async () => {
-  const restore = scriptFetch([geminiBody({ answer: "grounded" })]);
+  const { restore } = scriptFetch([geminiBody({ answer: "grounded" })]);
   try {
     const router = createAiRouter(fakeEnv(), fakeSettings());
     const res = await router.generateObject({
@@ -117,7 +129,7 @@ test("grounding requirement routes straight to gemini", async () => {
 });
 
 test("missing groq key routes quiz to gemini", async () => {
-  const restore = scriptFetch([geminiBody({ answer: "only-gemini" })]);
+  const { restore } = scriptFetch([geminiBody({ answer: "only-gemini" })]);
   try {
     const router = createAiRouter(fakeEnv({ GROQ_API_KEY: "" }), fakeSettings());
     const res = await router.generateObject({
@@ -135,7 +147,7 @@ test("missing groq key routes quiz to gemini", async () => {
 
 test("task override routes quiz_generation to openrouter when configured", async () => {
   // OpenRouter's response shape is OpenAI-compatible, identical to Groq's fixture.
-  const restore = scriptFetch([groqBody({ answer: "from-or" })]);
+  const { restore } = scriptFetch([groqBody({ answer: "from-or" })]);
   try {
     const router = createAiRouter(
       fakeEnv({ GROQ_API_KEY: "" }),
@@ -153,6 +165,53 @@ test("task override routes quiz_generation to openrouter when configured", async
     });
     assert.equal(res.provider, "openrouter");
     assert.equal(res.data.answer, "from-or");
+  } finally {
+    restore();
+  }
+});
+
+test("admin setting for groq api key wins over the env var when both are present", async () => {
+  const { restore, calls } = scriptFetch([groqBody({ answer: "ok" })]);
+  try {
+    const router = createAiRouter(
+      fakeEnv({ GROQ_API_KEY: "env-key" }),
+      fakeSettings({ groq: { apiKey: "admin-key", model: "admin-model" } }),
+    );
+    await router.generateObject({
+      task: "quiz_generation",
+      schemaName: "Schema",
+      schema: Schema,
+      system: "s",
+      user: "u",
+    });
+    assert.equal(calls.length, 1);
+    const headers = calls[0]!.init.headers as Record<string, string>;
+    assert.equal(headers["authorization"], "Bearer admin-key");
+  } finally {
+    restore();
+  }
+});
+
+test("task override is ignored for a non-overridable task even if the snapshot carries one", async () => {
+  const { restore } = scriptFetch([geminiBody({ answer: "grounded" })]);
+  try {
+    const router = createAiRouter(
+      fakeEnv(),
+      // The real SettingsSnapshot type only allows overrides for quiz_generation/rewrite;
+      // this cast simulates a hypothetical upstream bug producing an out-of-contract
+      // shape, to prove the ROUTER's own runtime guard (not just the type system)
+      // refuses to apply it to book_grounding.
+      fakeSettings({ taskOverrides: { book_grounding: "groq" } as never }),
+    );
+    const res = await router.generateObject({
+      task: "book_grounding",
+      schemaName: "Schema",
+      schema: Schema,
+      system: "s",
+      user: "u",
+      requireGrounding: true,
+    });
+    assert.equal(res.provider, "gemini");
   } finally {
     restore();
   }

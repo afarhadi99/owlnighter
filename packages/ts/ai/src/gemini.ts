@@ -70,7 +70,10 @@ export class GeminiAdapter implements ProviderAdapter {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
+      const rawDetail = await res.text().catch(() => "");
+      const detail = this.env.GEMINI_API_KEY
+        ? rawDetail.replaceAll(this.env.GEMINI_API_KEY, "[redacted]")
+        : rawDetail;
       throw new Error(`Gemini generateObject failed (${res.status}): ${detail.slice(0, 500)}`);
     }
     const json = (await res.json()) as GeminiResponse;
@@ -95,7 +98,10 @@ export class GeminiAdapter implements ProviderAdapter {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
+      const rawDetail = await res.text().catch(() => "");
+      const detail = this.env.GEMINI_API_KEY
+        ? rawDetail.replaceAll(this.env.GEMINI_API_KEY, "[redacted]")
+        : rawDetail;
       throw new Error(`Gemini generateText failed (${res.status}): ${detail.slice(0, 500)}`);
     }
     const json = (await res.json()) as GeminiResponse;
