@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
 import {
   type AddLibraryBookRequest,
@@ -8,7 +8,7 @@ import {
   type LibraryBooksResponse,
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
-import { notFound } from "../plugins/errors.js";
+import { badRequest, notFound } from "../plugins/errors.js";
 import { requireUser } from "../plugins/auth.js";
 import { register } from "./helpers.js";
 
@@ -64,27 +64,34 @@ export function registerLibraryRoutes(app: FastifyInstance, deps: Deps): void {
       .limit(1);
     if (!book[0]) throw notFound("Book not found. Ground it first via POST /v1/books/ground.");
 
-    // Idempotent: if the user already has this book, return the existing row
-    // (re-activating it if it had been archived/paused).
-    const existing = await deps.db
+    // Single fetch of the caller's library rows — reused for both the
+    // reactivate-existing-entry check and the max-books-per-user limit below.
+    const userBooksRows = await deps.db
       .select()
       .from(schema.userBooks)
-      .where(and(eq(schema.userBooks.userId, user.id), eq(schema.userBooks.bookId, body.bookId)))
-      .limit(1);
+      .where(eq(schema.userBooks.userId, user.id));
+    const existingRow = userBooksRows.find((r) => r.bookId === body.bookId);
 
-    if (existing[0]) {
-      const row = existing[0];
+    if (existingRow) {
       await deps.db
         .update(schema.userBooks)
         .set({ status: "active", targetNightlyPages: body.targetNightlyPages, timezone: body.timezone })
-        .where(eq(schema.userBooks.id, row.id));
+        .where(eq(schema.userBooks.id, existingRow.id));
       return {
-        id: row.id,
-        bookId: row.bookId,
+        id: existingRow.id,
+        bookId: existingRow.bookId,
         status: "active",
-        ...(row.currentPage != null ? { currentPage: row.currentPage } : {}),
+        ...(existingRow.currentPage != null ? { currentPage: existingRow.currentPage } : {}),
         targetNightlyPages: body.targetNightlyPages,
       };
+    }
+
+    const maxBooks = await deps.settings.get("max_books_per_user", 3);
+    const activeCount = userBooksRows.filter((r) => r.status === "active").length;
+    if (activeCount >= maxBooks) {
+      throw badRequest(
+        `You've reached the limit of ${maxBooks} active books. Pause or finish one before adding another.`,
+      );
     }
 
     const inserted = await deps.db

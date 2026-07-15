@@ -15,6 +15,7 @@ import { registerPushRoutes } from "./routes/push.js";
 import { registerTtsRoutes } from "./routes/tts.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerAdminAuthRoutes } from "./routes/admin-auth.js";
+import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerStatsRoutes } from "./routes/stats.js";
 import "./types.js";
 
@@ -59,6 +60,7 @@ export async function buildApp(deps: Deps = buildDeps()): Promise<FastifyInstanc
   registerPushRoutes(app, deps);
   registerTtsRoutes(app, deps);
   registerAdminAuthRoutes(app, deps);
+  registerSettingsRoutes(app, deps);
   registerAdminRoutes(app, deps);
   registerStatsRoutes(app, deps);
 

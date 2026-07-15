@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { getDb, type Db } from "@owlnighter/db";
+import { getDb, createSettingsCache, type Db, type SettingsCache } from "@owlnighter/db";
 import { createAiRouter } from "@owlnighter/ai";
 import { ensureTtsAsset, createInMemoryQueue } from "@owlnighter/jobs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -46,6 +46,7 @@ export interface Deps {
   ai: AiRouter;
   supabase: SupabaseClient | undefined;
   ensureTtsAsset: typeof ensureTtsAsset;
+  settings: SettingsCache;
 }
 
 let cached: Deps | undefined;
@@ -56,6 +57,7 @@ export function buildDeps(): Deps {
   const { env } = config;
 
   const db = getDb(env.DATABASE_URL);
+  const settings = createSettingsCache(db);
 
   // The AI router needs env for keys/models; cast the runtime factory result to
   // our structural interface (the package exposes exactly this surface).
@@ -75,6 +77,6 @@ export function buildDeps(): Deps {
   // local dev (real deployments swap this for a durable queue in @owlnighter/jobs).
   createInMemoryQueue();
 
-  cached = { config, db, ai, supabase, ensureTtsAsset };
+  cached = { config, db, ai, supabase, ensureTtsAsset, settings };
   return cached;
 }

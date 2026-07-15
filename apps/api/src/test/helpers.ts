@@ -1,6 +1,6 @@
 import { createLogger, loadEnv, resolveFlags } from "@owlnighter/shared";
 import { ensureTtsAsset } from "@owlnighter/jobs";
-import type { Db } from "@owlnighter/db";
+import type { Db, SettingsCache } from "@owlnighter/db";
 import type { AiRouter, Deps, GenerateObjectResult } from "../deps.js";
 
 /**
@@ -68,6 +68,8 @@ export interface FakeDepsOptions {
   ensureTtsAsset?: typeof ensureTtsAsset;
   /** Canned results for deps.db.execute(), consumed in call order (pgcrypto hash/verify). */
   executeResults?: unknown[][];
+  /** Override the settings cache (default: an empty fakeSettings()). */
+  settings?: SettingsCache;
 }
 
 /** Assemble a Deps object good enough for `buildApp`. Dev bearer auth requires
@@ -80,10 +82,40 @@ export function fakeDeps(opts: FakeDepsOptions = {}): Deps {
       logger: createLogger("fatal"),
     },
     db: fakeDb(opts.byTable, opts.executeResults ?? []),
+    settings: opts.settings ?? fakeSettings(),
     ai: (opts.ai ?? {}) as AiRouter,
     supabase: opts.supabase as Deps["supabase"],
     ensureTtsAsset: opts.ensureTtsAsset ?? ensureTtsAsset,
   } as Deps;
+}
+
+export interface FakeSettingsOptions {
+  rows?: Array<{ key: string; value: unknown; isSecret?: boolean }>;
+}
+
+/** An in-memory SettingsCache for tests — no TTL, no DB. */
+export function fakeSettings(opts: FakeSettingsOptions = {}): SettingsCache {
+  const store = new Map<string, { value: unknown; isSecret: boolean }>(
+    (opts.rows ?? []).map((r) => [r.key, { value: r.value, isSecret: r.isSecret ?? false }]),
+  );
+  return {
+    async get<T>(key: string, fallback: T): Promise<T> {
+      return (store.has(key) ? store.get(key)!.value : fallback) as T;
+    },
+    async listAll() {
+      return Array.from(store.entries()).map(([key, r]) => ({
+        key,
+        value: r.value,
+        isSecret: r.isSecret,
+        updatedAt: new Date(),
+      }));
+    },
+    async set(key: string, value: unknown, isSecret = false) {
+      store.set(key, { value, isSecret });
+      return new Date();
+    },
+    invalidate() {},
+  };
 }
 
 /** An AiRouter whose generateObject always returns `data` (no provider call).
