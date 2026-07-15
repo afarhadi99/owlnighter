@@ -14,6 +14,7 @@ import { registerQuizRoutes } from "./routes/quiz.js";
 import { registerPushRoutes } from "./routes/push.js";
 import { registerTtsRoutes } from "./routes/tts.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { registerAdminAuthRoutes } from "./routes/admin-auth.js";
 import { registerStatsRoutes } from "./routes/stats.js";
 import "./types.js";
 
@@ -36,7 +37,7 @@ export async function buildApp(deps: Deps = buildDeps()): Promise<FastifyInstanc
 
   app.decorate("deps", deps);
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, { origin: true, credentials: true });
   await app.register(sensible);
 
   registerRequestId(app);
@@ -57,6 +58,7 @@ export async function buildApp(deps: Deps = buildDeps()): Promise<FastifyInstanc
   registerQuizRoutes(app, deps);
   registerPushRoutes(app, deps);
   registerTtsRoutes(app, deps);
+  registerAdminAuthRoutes(app, deps);
   registerAdminRoutes(app, deps);
   registerStatsRoutes(app, deps);
 

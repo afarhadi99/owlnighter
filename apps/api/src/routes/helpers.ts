@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest, RouteHandlerMethod,
 import type { z } from "zod";
 import { ENDPOINTS, type EndpointDef } from "@owlnighter/contracts";
 import { adminGuard, userGuard } from "../plugins/auth.js";
+import { adminPanelGuard } from "../plugins/admin-session.js";
 import { badRequest } from "../plugins/errors.js";
 import type { Deps } from "../deps.js";
 
@@ -15,6 +16,7 @@ export function endpoint(operationId: string): EndpointDef {
 function guardFor(deps: Deps, auth: EndpointDef["auth"]): preHandlerHookHandler | undefined {
   if (auth === "user") return userGuard(deps) as preHandlerHookHandler;
   if (auth === "admin") return adminGuard(deps) as preHandlerHookHandler;
+  if (auth === "admin_panel") return adminPanelGuard(deps) as preHandlerHookHandler;
   return undefined;
 }
 

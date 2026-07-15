@@ -23,7 +23,7 @@ export const DEV_BEARER = { authorization: "Bearer DEV" } as const;
  * row shape under the driving (`.from`) table. Enough to exercise route wiring,
  * auth, validation, and response mapping without a database.
  */
-export function fakeDb(byTable: Map<unknown, Rows> = new Map()): Db {
+export function fakeDb(byTable: Map<unknown, Rows> = new Map(), executeResults: unknown[][] = []): Db {
   const makeChain = () => {
     let table: unknown;
     const chain = {
@@ -50,6 +50,7 @@ export function fakeDb(byTable: Map<unknown, Rows> = new Map()): Db {
     insert: (t: unknown) => makeChain().from(t),
     update: (t: unknown) => makeChain().from(t),
     delete: (t: unknown) => makeChain().from(t),
+    execute: async () => executeResults.shift() ?? [],
   };
   return db as unknown as Db;
 }
@@ -65,6 +66,8 @@ export interface FakeDepsOptions {
   supabase?: unknown;
   /** Override the TTS job seam (default: the real, side-effect-free export). */
   ensureTtsAsset?: typeof ensureTtsAsset;
+  /** Canned results for deps.db.execute(), consumed in call order (pgcrypto hash/verify). */
+  executeResults?: unknown[][];
 }
 
 /** Assemble a Deps object good enough for `buildApp`. Dev bearer auth requires
@@ -76,7 +79,7 @@ export function fakeDeps(opts: FakeDepsOptions = {}): Deps {
       flags: resolveFlags(),
       logger: createLogger("fatal"),
     },
-    db: fakeDb(opts.byTable),
+    db: fakeDb(opts.byTable, opts.executeResults ?? []),
     ai: (opts.ai ?? {}) as AiRouter,
     supabase: opts.supabase as Deps["supabase"],
     ensureTtsAsset: opts.ensureTtsAsset ?? ensureTtsAsset,
