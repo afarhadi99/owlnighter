@@ -79,11 +79,23 @@ export class AiTutorApiAdapter implements ProviderAdapter {
   async generateText(opts: GenerateTextOptions): Promise<AiTextResult> {
     const workflowId = this.workflowIdFor(opts.task);
     const { result } = await this.run(workflowId, opts.system, opts.user);
-    return {
-      text: typeof result === "string" ? result : JSON.stringify(result),
-      provider: "ai_tutor_api",
-      model: `ai_tutor_api:${workflowId}`,
-    };
+    const text = decodeTextResult(result);
+    return { text, provider: "ai_tutor_api", model: `ai_tutor_api:${workflowId}` };
+  }
+}
+
+/** Unwraps a JSON-encoded string `result` (the documented contract — e.g. a
+ * rewrite workflow's result is `JSON.stringify("plain text")`) down to the
+ * plain text callers expect. Falls back to the raw string unchanged if it
+ * isn't valid JSON at all, so a workflow that already returns plain text
+ * still works correctly instead of crashing. */
+function decodeTextResult(result: unknown): string {
+  if (typeof result !== "string") return JSON.stringify(result);
+  try {
+    const parsed = JSON.parse(result);
+    return typeof parsed === "string" ? parsed : result;
+  } catch {
+    return result; // not JSON-encoded — already plain text, use as-is
   }
 }
 

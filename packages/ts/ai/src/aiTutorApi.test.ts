@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AiTutorApiAdapter } from "./aiTutorApi.js";
-import type { GenerateObjectOptions } from "./types.js";
+import type { GenerateObjectOptions, GenerateTextOptions } from "./types.js";
 
 function scriptFetch(body: unknown, status = 200): () => void {
   const original = globalThis.fetch;
@@ -23,6 +23,7 @@ function scriptFetchText(text: string, status: number): () => void {
 }
 
 const baseOpts = { schemaName: "s", schema: undefined as never, system: "sys", user: "usr" };
+const baseTextOpts = { system: "sys", user: "usr" };
 
 test("throws when no workflow_id is configured for the task", async () => {
   const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: {} });
@@ -78,6 +79,54 @@ test("redacts the API key out of a thrown error message on a non-ok response", a
         return true;
       },
     );
+  } finally {
+    restore();
+  }
+});
+
+test("generateText unwraps a JSON-encoded string result", async () => {
+  const restore = scriptFetch({
+    success: true,
+    result: JSON.stringify("Here is the rewritten paragraph."),
+  });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { rewrite: "wf_456" } });
+    const { text } = await adapter.generateText({ task: "rewrite", ...baseTextOpts } as GenerateTextOptions);
+    assert.equal(text, "Here is the rewritten paragraph.");
+  } finally {
+    restore();
+  }
+});
+
+test("generateText falls back to the raw string when result isn't valid JSON", async () => {
+  const restore = scriptFetch({
+    success: true,
+    result: "plain text that is not JSON",
+  });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { rewrite: "wf_456" } });
+    const { text } = await adapter.generateText({ task: "rewrite", ...baseTextOpts } as GenerateTextOptions);
+    assert.equal(text, "plain text that is not JSON");
+  } finally {
+    restore();
+  }
+});
+
+test("a citation with neither title nor url falls back to a generic placeholder", async () => {
+  const restore = scriptFetch({
+    success: true,
+    result: JSON.stringify({ answer: "ok" }),
+    citations: [{}],
+  });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { quiz_generation: "wf_123" } });
+    const { citations } = await adapter.generateObjectRaw({
+      task: "quiz_generation",
+      ...baseOpts,
+    } as GenerateObjectOptions<unknown>);
+    assert.deepEqual(citations, [
+      { title: "source", url: "", reason: "Cited by AI Tutor API web search." },
+    ]);
   } finally {
     restore();
   }
