@@ -4,6 +4,10 @@ import { saveDefaultProviderAction, type SaveProviderState } from "./actions";
 
 const initialState: SaveProviderState = {};
 const PROVIDERS = ["gemini", "groq", "openrouter", "ai_tutor_api"] as const;
+// AI Tutor API has no `workflow_id.rewrite` setting (only `workflow_id.quiz_generation`
+// exists today), so selecting it here would guarantee a request-time failure. Exclude
+// it from the rewrite override until a future task adds that setting end to end.
+const REWRITE_PROVIDERS = PROVIDERS.filter((p) => p !== "ai_tutor_api");
 
 export function DefaultProviderCard({
   defaultProvider,
@@ -61,7 +65,7 @@ export function DefaultProviderCard({
             className="mt-1 w-full rounded border border-line bg-ink-700 px-2 py-1 text-sm text-slate-100"
           >
             <option value="">use built-in routing (Groq-first)</option>
-            {PROVIDERS.map((p) => (
+            {REWRITE_PROVIDERS.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>

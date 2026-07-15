@@ -16,11 +16,9 @@ export function ModelCatalogTable({ provider }: { provider: "groq" | "openrouter
   function load() {
     setError(null);
     startTransition(async () => {
-      try {
-        setModels(await fetchModelsAction(provider));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch models.");
-      }
+      const result = await fetchModelsAction(provider);
+      if (result.error) setError(result.error);
+      else setModels(result.models ?? []);
     });
   }
 

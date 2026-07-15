@@ -3,9 +3,24 @@ import { revalidatePath } from "next/cache";
 import { api, ApiRequestError } from "@/lib/api";
 import type { AiModelInfo } from "@/lib/api";
 
-export async function fetchModelsAction(provider: "groq" | "openrouter"): Promise<AiModelInfo[]> {
-  const res = await api.adminGetAiModels(provider);
-  return res.models;
+export interface FetchModelsResult {
+  models?: AiModelInfo[];
+  error?: string;
+}
+
+/** Returns a plain result object rather than throwing. Server Actions don't
+ * preserve custom error classes across the client/server boundary — the
+ * client only ever sees a generic `Error` — so `ApiRequestError` must be
+ * caught here (still genuinely that class, since we haven't crossed the
+ * boundary yet) to surface the real API error message. */
+export async function fetchModelsAction(provider: "groq" | "openrouter"): Promise<FetchModelsResult> {
+  try {
+    const res = await api.adminGetAiModels(provider);
+    return { models: res.models };
+  } catch (err) {
+    if (err instanceof ApiRequestError) return { error: err.body?.error.message ?? "Failed to fetch models." };
+    return { error: "Failed to fetch models." };
+  }
 }
 
 export interface SaveProviderState {

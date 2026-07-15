@@ -107,18 +107,6 @@ export default async function AiProvidersPage() {
             placeholder: configured("ai_provider.ai_tutor_api.api_key") ? "•••• configured" : "not set",
           },
           {
-            key: "ai_provider.ai_tutor_api.workflow_id.book_grounding",
-            label: "Workflow ID — book grounding",
-            type: "text",
-            defaultValue: str("ai_provider.ai_tutor_api.workflow_id.book_grounding"),
-          },
-          {
-            key: "ai_provider.ai_tutor_api.workflow_id.plan_generation",
-            label: "Workflow ID — plan generation",
-            type: "text",
-            defaultValue: str("ai_provider.ai_tutor_api.workflow_id.plan_generation"),
-          },
-          {
             key: "ai_provider.ai_tutor_api.workflow_id.quiz_generation",
             label: "Workflow ID — quiz generation",
             type: "text",
@@ -129,7 +117,9 @@ export default async function AiProvidersPage() {
         <p className="mt-2 text-xs text-muted">
           Workflow IDs come from importing{" "}
           <code>docs/ai-tutor-workflows/quiz-generation-workflow.json</code> into your AI Tutor API console (see
-          that folder&apos;s README).
+          that folder&apos;s README). Only tasks eligible for a provider override (quiz generation, rewrite) have a
+          configurable workflow here — book grounding and plan generation always route to Gemini and have no AI
+          Tutor API workflow to set up.
         </p>
       </ProviderCard>
     </div>
