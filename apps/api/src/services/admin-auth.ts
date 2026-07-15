@@ -1,14 +1,17 @@
-import { sql, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { schema } from "@owlnighter/db";
 import type {
+  AdminAccountActionResponse,
+  AdminAccountStatus,
   AdminLoginRequest,
   AdminLoginResponse,
   AdminMeResponse,
+  AdminPendingAccountsResponse,
   AdminSignupRequest,
   AdminSignupResponse,
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
-import { badRequest, forbidden, unauthorized } from "../plugins/errors.js";
+import { badRequest, forbidden, notFound, unauthorized } from "../plugins/errors.js";
 import { generateSessionToken, hashToken } from "../utils/admin-crypto.js";
 import type { AdminPrincipal } from "../types.js";
 
@@ -103,4 +106,61 @@ export async function logout(deps: Deps, token: string): Promise<void> {
 
 export function me(admin: AdminPrincipal): AdminMeResponse {
   return { id: admin.id, email: admin.email, isAdmin: admin.isAdmin };
+}
+
+export async function listPendingAccounts(deps: Deps): Promise<AdminPendingAccountsResponse> {
+  const rows = await deps.db
+    .select({
+      id: schema.adminAccounts.id,
+      email: schema.adminAccounts.email,
+      status: schema.adminAccounts.status,
+      createdAt: schema.adminAccounts.createdAt,
+    })
+    .from(schema.adminAccounts)
+    .where(eq(schema.adminAccounts.status, "pending"))
+    .orderBy(asc(schema.adminAccounts.createdAt));
+  return {
+    accounts: rows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      status: r.status as AdminAccountStatus,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  };
+}
+
+export async function approveAccount(
+  deps: Deps,
+  admin: AdminPrincipal,
+  accountId: string,
+): Promise<AdminAccountActionResponse> {
+  const rows = await deps.db
+    .select({ id: schema.adminAccounts.id })
+    .from(schema.adminAccounts)
+    .where(eq(schema.adminAccounts.id, accountId))
+    .limit(1);
+  if (!rows[0]) throw notFound("Account not found.");
+  await deps.db
+    .update(schema.adminAccounts)
+    .set({ status: "approved", isAdmin: true, approvedBy: admin.id, approvedAt: new Date(), updatedAt: new Date() })
+    .where(eq(schema.adminAccounts.id, accountId));
+  return { id: accountId, status: "approved" };
+}
+
+export async function rejectAccount(
+  deps: Deps,
+  admin: AdminPrincipal,
+  accountId: string,
+): Promise<AdminAccountActionResponse> {
+  const rows = await deps.db
+    .select({ id: schema.adminAccounts.id })
+    .from(schema.adminAccounts)
+    .where(eq(schema.adminAccounts.id, accountId))
+    .limit(1);
+  if (!rows[0]) throw notFound("Account not found.");
+  await deps.db
+    .update(schema.adminAccounts)
+    .set({ status: "rejected", approvedBy: admin.id, approvedAt: new Date(), updatedAt: new Date() })
+    .where(eq(schema.adminAccounts.id, accountId));
+  return { id: accountId, status: "rejected" };
 }
