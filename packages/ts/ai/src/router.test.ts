@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
 import type { Env } from "@owlnighter/shared";
-import { createAiRouter } from "./router.js";
+import { createAiRouter, preferredProvider } from "./router.js";
 import type { SettingsReader, SettingsSnapshot } from "./types.js";
 
 // Minimal Env with only what the router/adapters read.
@@ -192,15 +192,29 @@ test("admin setting for groq api key wins over the env var when both are present
   }
 });
 
-test("task override is ignored for a non-overridable task even if the snapshot carries one", async () => {
+test("preferredProvider ignores a task override for book_grounding/plan_generation", () => {
+  // Direct unit test of the router's internal preferredProvider(), calling it
+  // with a truthy taskOverride for a non-overridable task — bypassing
+  // generateObject's own upstream `TASK_OVERRIDABLE.has(opts.task) ? ... :
+  // undefined` filter entirely (that filter is what normally prevents a
+  // taskOverride from ever reaching this function for these two tasks).
+  // This isolates preferredProvider's OWN guard — the
+  // `taskOverride && TASK_OVERRIDABLE.has(opts.task)` check — so a mutation
+  // that deletes just that check (e.g. changing it to `if (taskOverride)
+  // return taskOverride;`) makes this specific test fail, regardless of
+  // whether the upstream filter in generateObject/generateText still exists.
+  assert.equal(preferredProvider({ task: "book_grounding" }, "groq"), "gemini");
+  assert.equal(preferredProvider({ task: "plan_generation" }, "openrouter"), "gemini");
+});
+
+test("task override in settings is never applied to book_grounding, even without requireGrounding set", async () => {
   const { restore } = scriptFetch([geminiBody({ answer: "grounded" })]);
   try {
     const router = createAiRouter(
       fakeEnv(),
       // The real SettingsSnapshot type only allows overrides for quiz_generation/rewrite;
       // this cast simulates a hypothetical upstream bug producing an out-of-contract
-      // shape, to prove the ROUTER's own runtime guard (not just the type system)
-      // refuses to apply it to book_grounding.
+      // shape, to prove the router doesn't honor it for book_grounding.
       fakeSettings({ taskOverrides: { book_grounding: "groq" } as never }),
     );
     const res = await router.generateObject({
@@ -209,9 +223,18 @@ test("task override is ignored for a non-overridable task even if the snapshot c
       schema: Schema,
       system: "s",
       user: "u",
-      requireGrounding: true,
+      // Deliberately NOT requireGrounding: that flag short-circuits to gemini
+      // on preferredProvider's very first line, before the override logic is
+      // ever reached — which would make this assertion pass for the wrong
+      // reason (that's exactly the confound the previous version of this
+      // test had).
     });
     assert.equal(res.provider, "gemini");
+    // attempts === 1 proves gemini was the PRIMARY (first-tried) provider —
+    // not reached via a groq-fails-then-falls-back-to-gemini path, which
+    // would *also* end in "gemini" even if preferredProvider's switch-case
+    // had a bug that mistakenly routed book_grounding to groq.
+    assert.equal(res.attempts, 1);
   } finally {
     restore();
   }

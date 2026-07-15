@@ -22,7 +22,11 @@ import type {
  * the rest of the app depends on). */
 const TASK_OVERRIDABLE: ReadonlySet<AiTask> = new Set(["quiz_generation", "rewrite"]);
 
-function preferredProvider(
+/** Exported (but not re-exported from index.ts, so it stays out of the
+ * package's public API) purely so router.test.ts can unit-test the
+ * override-eligibility guard directly, independent of the requireGrounding
+ * short-circuit above it and of generateObject's own upstream filtering. */
+export function preferredProvider(
   opts: { task: AiTask; requireGrounding?: boolean; requireStrictSchema?: boolean },
   taskOverride: ProviderName | undefined,
 ): ProviderName {
