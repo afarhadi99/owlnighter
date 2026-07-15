@@ -3,7 +3,7 @@ import type { AdminPendingAccount } from "@/lib/api";
 import { PageHeader } from "@/components/PageHeader";
 import { DataTable } from "@/components/DataTable";
 import { Badge } from "@/components/Badge";
-import { approveAccountAction, rejectAccountAction } from "./actions";
+import { AccountRowActions } from "./AccountRowActions";
 
 export default async function AccountsPage() {
   let accounts: AdminPendingAccount[] = [];
@@ -35,23 +35,7 @@ export default async function AccountsPage() {
           {
             key: "actions",
             header: "Actions",
-            render: (r) => (
-              <div className="flex gap-2">
-                <form action={approveAccountAction.bind(null, r.id)}>
-                  <button
-                    type="submit"
-                    className="rounded border border-good/40 bg-good/10 px-2 py-1 text-xs text-good"
-                  >
-                    Approve
-                  </button>
-                </form>
-                <form action={rejectAccountAction.bind(null, r.id)}>
-                  <button type="submit" className="rounded border border-bad/40 bg-bad/10 px-2 py-1 text-xs text-bad">
-                    Reject
-                  </button>
-                </form>
-              </div>
-            ),
+            render: (r) => <AccountRowActions id={r.id} />,
           },
         ]}
       />

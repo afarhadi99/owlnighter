@@ -15,7 +15,7 @@ export async function loginAction(
   const password = String(formData.get("password") ?? "");
   try {
     const res = await api.adminLogin({ email, password });
-    await setAdminToken(res.token);
+    await setAdminToken(res.token, res.expiresAt);
   } catch (err) {
     if (err instanceof ApiRequestError) return { error: err.body?.error.message ?? "Login failed." };
     return { error: "Login failed." };
