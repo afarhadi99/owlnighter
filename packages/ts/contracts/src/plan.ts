@@ -6,8 +6,11 @@ import { AiProvider, Confidence, PacingMode, QuizMode, Uuid } from "./common.js"
 export const PlanStep = z.object({
   stepIndex: z.number().int().nonnegative(),
   title: z.string(),
-  pageStart: z.number().int().optional(),
-  pageEnd: z.number().int().optional(),
+  // Bounded to catch AI hallucinations before they hit the DB — reading_plan_steps'
+  // page_start/page_end are Postgres `integer` (max ~2.1B), and an unbounded schema
+  // let occasional wild values (e.g. 10^15) through, crashing the insert.
+  pageStart: z.number().int().nonnegative().max(100_000).optional(),
+  pageEnd: z.number().int().nonnegative().max(100_000).optional(),
   chapterHint: z.string().optional(),
   quizMode: QuizMode,
   prompt: z.string(),
