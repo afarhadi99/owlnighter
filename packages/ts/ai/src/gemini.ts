@@ -120,7 +120,10 @@ function toGeminiSchema(schema: z.ZodType<unknown>): unknown {
 
 /**
  * Gemini's responseSchema rejects several JSON Schema keywords ($schema, additionalProperties,
- * const, format on some builds). Recursively drop them so the call doesn't 400.
+ * const, format on some builds; exclusiveMinimum/exclusiveMaximum — draft-2020-12 numeric
+ * forms emitted by zod's .positive()/.negative() — 400 as "Cannot find field").
+ * Recursively drop them so the call doesn't 400. Lossy stripping is fine here: the
+ * schema is re-validated app-side with the full zod schema after the response arrives.
  */
 function stripUnsupported(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(stripUnsupported);
@@ -128,6 +131,7 @@ function stripUnsupported(node: unknown): unknown {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
       if (k === "$schema" || k === "additionalProperties" || k === "$id" || k === "const") continue;
+      if (k === "exclusiveMinimum" || k === "exclusiveMaximum") continue;
       out[k] = stripUnsupported(v);
     }
     return out;
