@@ -132,6 +132,12 @@ function stripUnsupported(node: unknown): unknown {
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
       if (k === "$schema" || k === "additionalProperties" || k === "$id" || k === "const") continue;
       if (k === "exclusiveMinimum" || k === "exclusiveMaximum") continue;
+      // `format` (from zod .url()/.uuid()/.iso.datetime() — e.g. BookIdentity.coverUrl,
+      // sent to Gemini in the grounding schema) is accepted on some Gemini builds and
+      // rejected on others, exactly like exclusiveMinimum was. The docstring above has
+      // always promised to drop it; this makes the code match. Lossy is safe — the full
+      // zod schema re-validates the response app-side.
+      if (k === "format") continue;
       out[k] = stripUnsupported(v);
     }
     return out;
