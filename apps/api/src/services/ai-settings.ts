@@ -15,6 +15,7 @@ export function createAiSettingsReader(settings: SettingsCache): SettingsReader 
         workflowBookGrounding,
         workflowPlanGeneration,
         workflowQuizGeneration,
+        workflowRewrite,
         quizOverride,
         rewriteOverride,
       ] = await Promise.all([
@@ -26,6 +27,7 @@ export function createAiSettingsReader(settings: SettingsCache): SettingsReader 
         settings.get("ai_provider.ai_tutor_api.workflow_id.book_grounding", ""),
         settings.get("ai_provider.ai_tutor_api.workflow_id.plan_generation", ""),
         settings.get("ai_provider.ai_tutor_api.workflow_id.quiz_generation", ""),
+        settings.get("ai_provider.ai_tutor_api.workflow_id.rewrite", ""),
         settings.get<ProviderName | null>("ai_provider.task_override.quiz_generation", null),
         settings.get<ProviderName | null>("ai_provider.task_override.rewrite", null),
       ]);
@@ -38,6 +40,7 @@ export function createAiSettingsReader(settings: SettingsCache): SettingsReader 
             book_grounding: workflowBookGrounding || undefined,
             plan_generation: workflowPlanGeneration || undefined,
             quiz_generation: workflowQuizGeneration || undefined,
+            rewrite: workflowRewrite || undefined,
           },
         },
         taskOverrides: {

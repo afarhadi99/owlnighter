@@ -112,6 +112,12 @@ export default async function AiProvidersPage() {
             type: "text",
             defaultValue: str("ai_provider.ai_tutor_api.workflow_id.quiz_generation"),
           },
+          {
+            key: "ai_provider.ai_tutor_api.workflow_id.rewrite",
+            label: "Workflow ID — rewrite",
+            type: "text",
+            defaultValue: str("ai_provider.ai_tutor_api.workflow_id.rewrite"),
+          },
         ]}
       >
         <p className="mt-2 text-xs text-muted">

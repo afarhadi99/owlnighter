@@ -36,6 +36,7 @@ insert into public.app_settings (key, value, is_secret) values
   ('ai_provider.ai_tutor_api.workflow_id.book_grounding', '""'::jsonb, false),
   ('ai_provider.ai_tutor_api.workflow_id.plan_generation', '""'::jsonb, false),
   ('ai_provider.ai_tutor_api.workflow_id.quiz_generation', '""'::jsonb, false),
+  ('ai_provider.ai_tutor_api.workflow_id.rewrite', '""'::jsonb, false),
   ('ai_provider.default', '"ai_tutor_api"'::jsonb, false),
   ('ai_provider.task_override.quiz_generation', 'null'::jsonb, false),
   ('ai_provider.task_override.rewrite', 'null'::jsonb, false)
