@@ -22,7 +22,12 @@ import type { AuthUser } from "../types.js";
  * NOTE: mirrored by docs/ai-tutor-workflows/build.mjs — run
  * `node docs/ai-tutor-workflows/build.mjs` after changing this shape.
  */
-const GeneratedQuiz = z.object({
+// Exported so services/quiz.test.ts can assert the sourceCitationIndex bound at
+// the real enforcement gate: this is the schema the AI router safeParses the
+// model's output against (see generateStepQuiz's generateObject call below), so
+// its bounds — not the mirrored contract's — are what actually reject a
+// hallucinated value before it reaches the insert.
+export const GeneratedQuiz = z.object({
   questions: z
     .array(
       z.object({
@@ -31,7 +36,12 @@ const GeneratedQuiz = z.object({
         options: z.array(z.string()).optional(),
         correctAnswer: z.string(),
         explanation: z.string().optional(),
-        sourceCitationIndex: z.number().int().optional(),
+        // Bounded like PlanStep.pageStart/pageEnd — quiz_questions.source_citation_index
+        // is a Postgres `integer` (max ~2.1B), and an unbounded schema let an
+        // AI-hallucinated value (e.g. 10^15) sail through safeParse straight into
+        // the insert, crashing it. Failing validation instead lets the router's
+        // retry/fallback recover. 1000 is a generous margin for grounding citations.
+        sourceCitationIndex: z.number().int().nonnegative().max(1000).optional(),
       }),
     )
     .min(1),

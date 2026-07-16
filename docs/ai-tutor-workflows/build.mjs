@@ -23,7 +23,7 @@ const structuredOutputSchema = {
           options: { type: "array", items: { type: "string" } },
           correctAnswer: { type: "string" },
           explanation: { type: "string" },
-          sourceCitationIndex: { type: "integer" },
+          sourceCitationIndex: { type: "integer", minimum: 0, maximum: 1000 },
         },
         required: ["kind", "prompt", "correctAnswer"],
         additionalProperties: false,

@@ -10,7 +10,12 @@ export const QuizQuestion = z.object({
   options: z.array(z.string()).optional(),
   /** Where the question's evidence came from (provenance for honesty). */
   quizMode: QuizMode,
-  sourceCitationIndex: z.number().int().optional(),
+  // Bounded like PlanStep.pageStart/pageEnd — quiz_questions.source_citation_index
+  // is a Postgres `integer` (max ~2.1B), and an unbounded schema let an
+  // AI-hallucinated value (e.g. 10^15) sail through validation straight into the
+  // insert, crashing it. A question realistically cites one of a handful of
+  // grounding citations, so 1000 is a generous safety margin.
+  sourceCitationIndex: z.number().int().nonnegative().max(1000).optional(),
 });
 export type QuizQuestion = z.infer<typeof QuizQuestion>;
 

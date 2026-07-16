@@ -1,6 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeStreaks } from "./quiz.js";
+import { computeStreaks, GeneratedQuiz } from "./quiz.js";
+
+// The AI router safeParses the model's output against GeneratedQuiz before the
+// service inserts it. A hallucinated sourceCitationIndex beyond Postgres int4
+// range (max ~2.1B) must fail here so the router retries/falls back, rather than
+// sailing through into quiz_questions.source_citation_index and crashing the
+// insert — the same bug class already bounded on PlanStep.pageStart/pageEnd.
+test("GeneratedQuiz rejects an out-of-range sourceCitationIndex", () => {
+  const base = { kind: "true_false" as const, prompt: "?", correctAnswer: "true" };
+  assert.equal(GeneratedQuiz.safeParse({ questions: [{ ...base, sourceCitationIndex: 1_000_000_000_000_000 }] }).success, false);
+  // A negative index is also nonsensical and must be rejected.
+  assert.equal(GeneratedQuiz.safeParse({ questions: [{ ...base, sourceCitationIndex: -1 }] }).success, false);
+});
+
+test("GeneratedQuiz accepts a realistic (or omitted) sourceCitationIndex", () => {
+  const base = { kind: "true_false" as const, prompt: "?", correctAnswer: "true" };
+  assert.equal(GeneratedQuiz.safeParse({ questions: [{ ...base, sourceCitationIndex: 3 }] }).success, true);
+  assert.equal(GeneratedQuiz.safeParse({ questions: [{ ...base }] }).success, true);
+});
 
 test("computeStreaks: no days → zero", () => {
   assert.deepEqual(computeStreaks([], "2026-07-09"), { current: 0, longest: 0 });
