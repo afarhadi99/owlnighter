@@ -109,41 +109,32 @@ export async function generateStepQuiz(deps: Deps, user: AuthUser, stepId: strin
     if (existing[0]) return loadQuizInstance(deps, existing[0]);
   }
 
-  // Provider routing: Groq-first for quiz generation when the flag allows and a
-  // Groq key exists; otherwise Gemini. Fall back to the other on failure.
-  const useGroqFirst = deps.config.flags.groqQuizGeneration && deps.config.env.GROQ_API_KEY.length > 0;
-  const order: Array<"gemini" | "groq"> = useGroqFirst ? ["groq", "gemini"] : ["gemini", "groq"];
-  const configured = order.filter((p) => (p === "gemini" ? deps.config.env.GEMINI_API_KEY : deps.config.env.GROQ_API_KEY).length > 0);
-  if (configured.length === 0) throw unavailable("Quiz generation unavailable: no AI provider key is configured.");
-
   const inputHash = contentHash([stepId, mode, req.questionCount, req.userProvidedText]);
   const system = SYSTEM_PROMPT;
   const prompt = userPrompt(step, mode, req);
 
-  let generated:
-    | { data: GeneratedQuiz; provider: "gemini" | "groq" | "openrouter" | "ai_tutor_api"; model: string; attempts: number }
-    | undefined;
-  let lastErr: unknown;
-  for (const provider of configured) {
-    try {
-      const r = await deps.ai.generateObject<GeneratedQuiz>({
-        task: "quiz_generation",
-        schemaName: "GeneratedQuiz",
-        schema: GeneratedQuiz,
-        system,
-        user: prompt,
-        provider,
-        // Groq Qwen has no strict schema mode; the router validates + retries.
-        requireStrictSchema: provider === "gemini",
-      });
-      generated = { data: r.data, provider: r.provider, model: r.model, attempts: r.attempts };
-      break;
-    } catch (err) {
-      lastErr = err;
-      deps.config.logger.warn({ err, provider }, "quiz generation failed, trying next provider");
-    }
+  // Provider selection — preferred provider for quiz_generation, the admin
+  // task-override, and fallback-to-Gemini-once on failure — is fully owned by
+  // the AI router (createAiRouter/generateObject in packages/ts/ai/src/router.ts).
+  // It reads live admin settings (env-var fallback) across all 4 providers, so
+  // quiz.ts must not pre-filter by env var or force a specific provider here —
+  // doing so would ignore settings-only configuration (e.g. an OpenRouter key
+  // set only in the admin panel) and would double-attempt the router's own
+  // internal Gemini fallback.
+  let generated: { data: GeneratedQuiz; provider: "gemini" | "groq" | "openrouter" | "ai_tutor_api"; model: string; attempts: number };
+  try {
+    const r = await deps.ai.generateObject<GeneratedQuiz>({
+      task: "quiz_generation",
+      schemaName: "GeneratedQuiz",
+      schema: GeneratedQuiz,
+      system,
+      user: prompt,
+    });
+    generated = { data: r.data, provider: r.provider, model: r.model, attempts: r.attempts };
+  } catch (err) {
+    deps.config.logger.warn({ err }, "quiz generation failed on all configured providers");
+    throw unavailable(`Quiz generation failed: ${String(err)}`);
   }
-  if (!generated) throw unavailable(`Quiz generation failed on all providers: ${String(lastErr)}`);
 
   // Trim to the requested count and compute a simple confidence.
   const questions = generated.data.questions.slice(0, req.questionCount);
