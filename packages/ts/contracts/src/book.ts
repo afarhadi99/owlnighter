@@ -9,7 +9,11 @@ export const BookIdentity = z.object({
   isbn13: z.string().regex(/^\d{13}$/).optional(),
   googleBooksId: z.string().optional(),
   openLibraryKey: z.string().optional(),
-  pageCount: z.number().int().positive().optional(),
+  // Bounded to catch AI hallucinations before they hit the DB — books.page_count is
+  // Postgres `integer` (max ~2.1B), and this identity is validated straight out of the
+  // Gemini grounding call then inserted verbatim; an unbounded schema let wild values
+  // (e.g. 10^12) through, crashing the insert. Mirrors PlanStep.pageStart/pageEnd.
+  pageCount: z.number().int().positive().max(100_000).optional(),
   languageCode: z.string().length(2).optional(),
   publishedYear: z.number().int().optional(),
   coverUrl: z.url().optional(),
@@ -24,7 +28,7 @@ export const CatalogCandidate = z.object({
   title: z.string(),
   authors: z.array(z.string()).default([]),
   isbn13: z.string().optional(),
-  pageCount: z.number().int().positive().optional(),
+  pageCount: z.number().int().positive().max(100_000).optional(),
   publishedYear: z.number().int().optional(),
   languageCode: z.string().optional(),
   coverUrl: z.url().optional(),
