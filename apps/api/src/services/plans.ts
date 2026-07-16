@@ -16,22 +16,6 @@ import type { Deps } from "../deps.js";
 import { notFound, unavailable } from "../plugins/errors.js";
 import type { AuthUser } from "../types.js";
 
-/**
- * Which provider generates the plan. The blueprint's two-pass flow front-loads
- * the slow, citation-bearing grounding into the book (already persisted), so the
- * plan pass just needs to be FAST: we prefer Groq when its key is configured and
- * fall back to Gemini (the AI router also validates + falls back on failure). An
- * explicit `provider` override is honoured whenever that provider's key is set.
- */
-function chooseProvider(deps: Deps, requested?: "gemini" | "groq" | "openrouter" | "ai_tutor_api"): "gemini" | "groq" {
-  const { env } = deps.config;
-  const has = (p: "gemini" | "groq") => (p === "gemini" ? env.GEMINI_API_KEY : env.GROQ_API_KEY).length > 0;
-  if ((requested === "gemini" || requested === "groq") && has(requested)) return requested;
-  if (has("groq")) return "groq";
-  if (has("gemini")) return "gemini";
-  return "gemini"; // will fail the key check below with a clear error
-}
-
 const SYSTEM_PROMPT = [
   "You create realistic nightly reading plans from a grounded fact set.",
   "Each step covers one night. Only set pageStart/pageEnd when page data is trustworthy.",
@@ -128,9 +112,15 @@ export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerate
     if (latest) return getPlan(deps, user, latest.id);
   }
 
-  const provider = chooseProvider(deps, req.provider);
-  const key = provider === "gemini" ? deps.config.env.GEMINI_API_KEY : deps.config.env.GROQ_API_KEY;
-  if (key.length === 0) throw unavailable(`Plan generation unavailable: ${provider.toUpperCase()}_API_KEY is not configured.`);
+  // Provider selection for plan_generation is owned entirely by the AI router
+  // (createAiRouter/generateObject in packages/ts/ai/src/router.ts). That task is
+  // hardcoded to Gemini and is NOT in TASK_OVERRIDABLE, so no admin override or
+  // env key can reroute it — a missing Gemini key therefore has no fallback. We
+  // pre-check it here so a no-provider-configured environment gets a clear 503
+  // instead of the bare Error the router would throw (which maps to a 500).
+  if (deps.config.env.GEMINI_API_KEY.length === 0) {
+    throw unavailable("Plan generation unavailable: GEMINI_API_KEY is not configured.");
+  }
 
   const identity = loadIdentity(book);
   const result = await deps.ai.generateObject<GroundedBookPlan>({
@@ -139,11 +129,9 @@ export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerate
     schema: GroundedBookPlan,
     system: SYSTEM_PROMPT,
     user: userPrompt(identity, book.groundingStatus, req),
-    provider,
     // Grounding already happened at book-ground time and its facts are baked into
     // the prompt, so the plan pass does not need live search grounding.
     requireGrounding: false,
-    requireStrictSchema: provider === "gemini",
   });
   const plan = result.data;
 
