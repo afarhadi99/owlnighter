@@ -15,7 +15,11 @@ export const BookIdentity = z.object({
   // (e.g. 10^12) through, crashing the insert. Mirrors PlanStep.pageStart/pageEnd.
   pageCount: z.number().int().positive().max(100_000).optional(),
   languageCode: z.string().length(2).optional(),
-  publishedYear: z.number().int().optional(),
+  // Bounded to a realistic calendar range for the same reason as pageCount above:
+  // books.published_year is Postgres `integer` (max ~2.1B), and this identity comes
+  // straight out of the Gemini grounding call then inserted verbatim; an unbounded
+  // schema let a hallucinated/malformed value (e.g. a ms timestamp) crash the insert.
+  publishedYear: z.number().int().min(-3000).max(2100).optional(),
   coverUrl: z.url().optional(),
   confidence: Confidence,
 });
@@ -29,7 +33,7 @@ export const CatalogCandidate = z.object({
   authors: z.array(z.string()).default([]),
   isbn13: z.string().optional(),
   pageCount: z.number().int().positive().max(100_000).optional(),
-  publishedYear: z.number().int().optional(),
+  publishedYear: z.number().int().min(-3000).max(2100).optional(),
   languageCode: z.string().optional(),
   coverUrl: z.url().optional(),
   rawUrl: z.url().optional(),
