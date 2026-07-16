@@ -4,7 +4,11 @@ import { AiProvider, Confidence, PacingMode, QuizMode, Uuid } from "./common.js"
 
 /** One night's worth of reading in a plan. */
 export const PlanStep = z.object({
-  stepIndex: z.number().int().nonnegative(),
+  // Bounded like pageStart/pageEnd below — reading_plan_steps.step_index is a
+  // Postgres `integer` (max ~2.1B), and an unbounded schema let an AI-hallucinated
+  // value (e.g. 10^15) sail through straight into the insert, crashing it. A nightly
+  // reading plan realistically never exceeds a few thousand steps.
+  stepIndex: z.number().int().nonnegative().max(10_000),
   title: z.string(),
   // Bounded to catch AI hallucinations before they hit the DB — reading_plan_steps'
   // page_start/page_end are Postgres `integer` (max ~2.1B), and an unbounded schema
@@ -67,7 +71,8 @@ export type PlanGenerateRequest = z.infer<typeof PlanGenerateRequest>;
 /** State attached to a step for the reader UI (unlocked, done, etc.). */
 export const PlanStepState = z.object({
   stepId: Uuid,
-  stepIndex: z.number().int().nonnegative(),
+  // Mirrors PlanStep.stepIndex's bound for defense-in-depth (same value, response-only here).
+  stepIndex: z.number().int().nonnegative().max(10_000),
   status: z.enum(["locked", "available", "completed"]),
   unlocksAt: z.iso.datetime().optional(),
   ttsAssetId: Uuid.optional(),
