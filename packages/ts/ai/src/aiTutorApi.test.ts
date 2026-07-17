@@ -3,13 +3,28 @@ import assert from "node:assert/strict";
 import { AiTutorApiAdapter } from "./aiTutorApi.js";
 import type { GenerateObjectOptions, GenerateTextOptions } from "./types.js";
 
-function scriptFetch(body: unknown, status = 200): () => void {
+/** A captured outgoing request: the URL and the parsed JSON request body. */
+type FetchCall = { url: string; body: Record<string, unknown> | undefined };
+/** The restore function, with the captured calls hung off it so tests can
+ * assert exactly what the adapter sent without a second helper. */
+type Restore = (() => void) & { calls: FetchCall[] };
+
+function scriptFetch(body: unknown, status = 200): Restore {
   const original = globalThis.fetch;
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })) as typeof fetch;
-  return () => {
+  const calls: FetchCall[] = [];
+  globalThis.fetch = (async (input: unknown, init?: { body?: unknown }) => {
+    const raw = init?.body;
+    calls.push({
+      url: String(input),
+      body: typeof raw === "string" ? (JSON.parse(raw) as Record<string, unknown>) : undefined,
+    });
+    return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  const restore = (() => {
     globalThis.fetch = original;
-  };
+  }) as Restore;
+  restore.calls = calls;
+  return restore;
 }
 
 /** Variant of scriptFetch that returns a raw (non-JSON) text body, for
@@ -49,6 +64,63 @@ test("generateObjectRaw parses the JSON-string result and maps citations", async
     assert.equal(citations.length, 1);
     assert.equal(citations[0]?.url, "https://example.com/a");
     assert.equal(model, "ai_tutor_api:wf_123");
+  } finally {
+    restore();
+  }
+});
+
+test("generateObjectRaw sends the variables map verbatim as the request body when provided", async () => {
+  const restore = scriptFetch({ success: true, result: JSON.stringify({ answer: "ok" }) });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { quiz_generation: "wf_123" } });
+    const variables = {
+      stepTitle: "Chapter 1",
+      chapterHint: "Ch. 1",
+      pageRange: "1-10",
+      quizMode: "grounded",
+      questionCount: "3",
+      readerContext: "",
+    };
+    await adapter.generateObjectRaw({ task: "quiz_generation", ...baseOpts, variables } as GenerateObjectOptions<unknown>);
+    assert.equal(restore.calls.length, 1);
+    const sent = restore.calls[0]!.body!;
+    // The body IS the variable map — and carries neither the system nor user key.
+    assert.deepEqual(sent, variables);
+    assert.ok(!("system" in sent), "variable-map body must not contain a system key");
+    assert.ok(!("user" in sent), "variable-map body must not contain a user key");
+  } finally {
+    restore();
+  }
+});
+
+test("generateObjectRaw falls back to {system,user} body when variables are absent", async () => {
+  const restore = scriptFetch({ success: true, result: JSON.stringify({ answer: "ok" }) });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { quiz_generation: "wf_123" } });
+    await adapter.generateObjectRaw({ task: "quiz_generation", ...baseOpts } as GenerateObjectOptions<unknown>);
+    assert.deepEqual(restore.calls[0]!.body, { system: "sys", user: "usr" });
+  } finally {
+    restore();
+  }
+});
+
+test("generateObjectRaw falls back to {system,user} body when variables is an empty map", async () => {
+  const restore = scriptFetch({ success: true, result: JSON.stringify({ answer: "ok" }) });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { quiz_generation: "wf_123" } });
+    await adapter.generateObjectRaw({ task: "quiz_generation", ...baseOpts, variables: {} } as GenerateObjectOptions<unknown>);
+    assert.deepEqual(restore.calls[0]!.body, { system: "sys", user: "usr" });
+  } finally {
+    restore();
+  }
+});
+
+test("generateText falls back to {system,user} body when variables are absent (rewrite path)", async () => {
+  const restore = scriptFetch({ success: true, result: JSON.stringify("done") });
+  try {
+    const adapter = new AiTutorApiAdapter({ apiKey: "k", workflowIds: { rewrite: "wf_456" } });
+    await adapter.generateText({ task: "rewrite", ...baseTextOpts } as GenerateTextOptions);
+    assert.deepEqual(restore.calls[0]!.body, { system: "sys", user: "usr" });
   } finally {
     restore();
   }

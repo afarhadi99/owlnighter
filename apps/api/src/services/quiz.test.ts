@@ -1,6 +1,39 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeStreaks, GeneratedQuiz } from "./quiz.js";
+import { computeStreaks, GeneratedQuiz, quizVariables } from "./quiz.js";
+
+// quizVariables only reads step.title/chapterHint/pageStart/pageEnd and
+// req.questionCount/userProvidedText, so we cast minimal literals to the real
+// parameter types rather than materializing full drizzle rows / contract objects.
+type Step = Parameters<typeof quizVariables>[0];
+type Req = Parameters<typeof quizVariables>[2];
+
+test("quizVariables produces the six named keys for a grounded step", () => {
+  const step = { title: "Chapter 1", chapterHint: "Ch. 1", pageStart: 1, pageEnd: 10 } as unknown as Step;
+  const req = { questionCount: 3 } as unknown as Req;
+  assert.deepEqual(quizVariables(step, "grounded", req), {
+    stepTitle: "Chapter 1",
+    chapterHint: "Ch. 1",
+    pageRange: "1-10",
+    quizMode: "grounded",
+    questionCount: "3",
+    readerContext: "",
+  });
+});
+
+test("quizVariables embeds the reader text (with its framing line) for a user_text step", () => {
+  // Missing chapterHint/pageStart/pageEnd collapse to empty strings, never undefined.
+  const step = { title: "Chapter 1", chapterHint: null, pageStart: null, pageEnd: null } as unknown as Step;
+  const req = { questionCount: 5, userProvidedText: "The fox jumped." } as unknown as Req;
+  const vars = quizVariables(step, "user_text", req);
+  assert.equal(vars.chapterHint, "");
+  assert.equal(vars.pageRange, "");
+  assert.equal(vars.quizMode, "user_text");
+  assert.equal(vars.questionCount, "5");
+  const readerContext = vars.readerContext ?? "";
+  assert.ok(readerContext.startsWith("Reader-supplied page text (base questions strictly on this):"));
+  assert.ok(readerContext.includes("The fox jumped."));
+});
 
 // The AI router safeParses the model's output against GeneratedQuiz before the
 // service inserts it. A hallucinated sourceCitationIndex beyond Postgres int4

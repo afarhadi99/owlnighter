@@ -1,19 +1,39 @@
 {
   "name": "owlnighter Quiz Generation",
   "model": "gemini-3.5-flash",
-  "template": "{{system}}\n\n{{user}}",
+  "template": "You write short comprehension quizzes for a nightly reading app. Each question needs a single unambiguous correctAnswer. For multiple_choice, include 3-4 options and set correctAnswer to the exact option text. For true_false, correctAnswer is 'true' or 'false'. Do NOT invent page-specific facts unless the provided context supports them. Output valid JSON only.\n\nStep: {{stepTitle}}\nChapter: {{chapterHint}}\nPages: {{pageRange}}\nQuiz mode: {{quizMode}}\nQuestion count: {{questionCount}}\n\n{{readerContext}}",
   "instruction": "",
   "modelSettings": "{\"temperature\":0.4,\"maxTokens\":2048,\"enableWebSearch\":true,\"reasoningEffort\":\"none\",\"structuredOutputSchema\":\"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"questions\\\":{\\\"type\\\":\\\"array\\\",\\\"minItems\\\":1,\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"multiple_choice\\\",\\\"true_false\\\",\\\"short_answer\\\"]},\\\"prompt\\\":{\\\"type\\\":\\\"string\\\"},\\\"options\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\"}},\\\"correctAnswer\\\":{\\\"type\\\":\\\"string\\\"},\\\"explanation\\\":{\\\"type\\\":\\\"string\\\"},\\\"sourceCitationIndex\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":0,\\\"maximum\\\":1000}},\\\"required\\\":[\\\"kind\\\",\\\"prompt\\\",\\\"correctAnswer\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"questions\\\"],\\\"additionalProperties\\\":false}\"}",
   "cacheControlTtl": 0,
   "inputs": [
     {
-      "name": "system",
-      "label": "System instructions",
+      "name": "stepTitle",
+      "label": "Step title",
       "type": "textarea"
     },
     {
-      "name": "user",
-      "label": "User prompt",
+      "name": "chapterHint",
+      "label": "Chapter hint",
+      "type": "textarea"
+    },
+    {
+      "name": "pageRange",
+      "label": "Page range",
+      "type": "textarea"
+    },
+    {
+      "name": "quizMode",
+      "label": "Quiz mode",
+      "type": "textarea"
+    },
+    {
+      "name": "questionCount",
+      "label": "Question count",
+      "type": "textarea"
+    },
+    {
+      "name": "readerContext",
+      "label": "Reader context",
       "type": "textarea"
     }
   ]

@@ -25,6 +25,13 @@ export interface GenerateObjectArgs<T> {
   schema: z.ZodType<T>;
   system: string;
   user: string;
+  /**
+   * Task-specific named template variables for providers whose prompt template
+   * lives platform-side (AI Tutor API). Providers that compose prompts from
+   * system/user (Gemini/Groq/OpenRouter) ignore it. Mirrors
+   * GenerateObjectOptions.variables in @owlnighter/ai.
+   */
+  variables?: Record<string, string>;
   provider?: "gemini" | "groq" | "openrouter" | "ai_tutor_api";
   requireGrounding?: boolean;
   requireStrictSchema?: boolean;

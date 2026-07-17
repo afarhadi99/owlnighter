@@ -20,6 +20,12 @@ export interface GenerateObjectOptions<T> {
   schema: ZodType<T>;
   system: string;
   user: string;
+  /**
+   * Task-specific named template variables for providers whose prompt template
+   * lives platform-side (AI Tutor API). Providers that compose prompts from
+   * system/user (Gemini/Groq/OpenRouter) ignore it.
+   */
+  variables?: Record<string, string>;
   /** Override the env default model. */
   model?: string;
   /** Hint the router to prefer the low-latency provider (Groq) when task allows. */
@@ -56,6 +62,12 @@ export interface GenerateTextOptions {
   task: AiTask;
   system: string;
   user: string;
+  /**
+   * Task-specific named template variables for providers whose prompt template
+   * lives platform-side (AI Tutor API). Providers that compose prompts from
+   * system/user (Gemini/Groq/OpenRouter) ignore it.
+   */
+  variables?: Record<string, string>;
   model?: string;
   preferLatency?: boolean;
 }
