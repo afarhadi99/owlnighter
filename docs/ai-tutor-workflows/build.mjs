@@ -29,7 +29,38 @@ const framingLines = [
   "Do NOT invent page-specific facts unless the provided context supports them.",
   "Output valid JSON only.",
 ];
-const QUIZ_SYSTEM_FRAMING = framingLines.join(" ");
+
+// A worked example of the exact output shape, appended after the prose rules.
+// Keep this in sync with GeneratedQuiz (apps/api/src/services/quiz.ts) — it
+// covers the two kinds with explicit formatting rules above (multiple_choice,
+// true_false); short_answer isn't shown since no rule governs its shape yet.
+// The subject matter and question count are placeholders on purpose — the
+// model must write its own questions from the real step content and the
+// actual requested count, not copy this example's.
+const exampleOutput = {
+  questions: [
+    {
+      kind: "multiple_choice",
+      prompt: "What does the protagonist decide at the end of this chapter?",
+      options: ["To stay home", "To join the quest", "To return the ring", "To warn the village"],
+      correctAnswer: "To join the quest",
+      explanation: "The chapter ends with the protagonist agreeing to accompany the group.",
+      sourceCitationIndex: 0,
+    },
+    {
+      kind: "true_false",
+      prompt: "The chapter takes place entirely at night.",
+      correctAnswer: "false",
+      explanation: "Most of the chapter's events happen during the day.",
+    },
+  ],
+};
+const QUIZ_SYSTEM_FRAMING =
+  framingLines.join(" ") +
+  "\n\nExample output shape (illustrative only — write your own questions from the actual " +
+  "step content and the requested question count; do not reuse this example's subject " +
+  "matter or count):\n" +
+  JSON.stringify(exampleOutput, null, 2);
 
 // ── Single source of truth: the ordered named-variable spec ──────────────────
 // `name` must match BOTH the {{placeholder}} in the template AND the key
