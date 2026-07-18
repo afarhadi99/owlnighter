@@ -16,7 +16,7 @@ import { register } from "./helpers.js";
  * Build a best-effort deterministic identity from the top candidate, before any
  * grounding. Confidence is low on purpose: this is a pre-grounding suggestion.
  */
-function suggestFrom(candidates: CatalogCandidate[]): BookIdentity | undefined {
+export function suggestFrom(candidates: CatalogCandidate[]): BookIdentity | undefined {
   const top = candidates[0];
   if (!top) return undefined;
   const identity: BookIdentity = {

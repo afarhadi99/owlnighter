@@ -365,8 +365,14 @@ async function request<T>(
 
 export const api = {
   searchBooks(body: BookSearchRequest) {
-    return request<BookSearchResponse>("/v1/books/search", {
+    // Hits the admin-scoped /v1/admin/books/search route (auth: "admin_panel"),
+    // not the user-facing /v1/books/search the mobile app uses (auth: "user").
+    // The admin console only ever holds an admin_panel session token, which
+    // the user-auth guard doesn't accept — see adminSearchBooks in
+    // apps/api/src/routes/admin.ts.
+    return request<BookSearchResponse>("/v1/admin/books/search", {
       method: "POST",
+      admin: true,
       body: JSON.stringify(body),
     });
   },

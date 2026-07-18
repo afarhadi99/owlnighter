@@ -15,6 +15,8 @@ import {
   type AdminQuizSummary,
   type AdminQuizzesResponse,
   type AdminTtsResponse,
+  type BookSearchRequest,
+  type BookSearchResponse,
   type GroundingFact,
   type GroundingRun,
   type GroundingSource,
@@ -25,6 +27,8 @@ import { mintFcmAccessToken, pushTemplateFor, sendPush, type PushDeps } from "@o
 import type { Deps } from "../deps.js";
 import { badRequest, notFound } from "../plugins/errors.js";
 import { reviewBucketFor } from "../services/grounding.js";
+import { searchCatalog } from "../services/catalog.js";
+import { suggestFrom } from "./books.js";
 import { register } from "./helpers.js";
 
 /** Clamp a `?limit=` query param to a sane window (default 50, max 200). */
@@ -56,6 +60,19 @@ const OVERRIDABLE = new Set([
 ]);
 
 export function registerAdminRoutes(app: FastifyInstance, deps: Deps): void {
+  // Same deterministic search as the user-facing `searchBooks` (mobile "add a
+  // book" flow), but gated by admin_panel session instead of a Supabase user
+  // JWT — the admin console never holds the latter, so it needs its own route
+  // rather than reusing /v1/books/search directly.
+  register<BookSearchRequest, BookSearchResponse>(app, deps, "adminSearchBooks", async ({ body }) => {
+    const params: Parameters<typeof searchCatalog>[2] = { title: body.title, limit: body.limit };
+    if (body.author) params.author = body.author;
+    if (body.isbn13) params.isbn13 = body.isbn13;
+    const candidates = await searchCatalog(deps.config.env, deps.config.logger, params);
+    const suggested = suggestFrom(candidates);
+    return suggested ? { candidates, suggested } : { candidates };
+  });
+
   register<never, AdminGroundingResponse>(app, deps, "adminGetGrounding", async ({ params }) => {
     const bookId = params["id"];
     if (!bookId) throw badRequest("Missing book id.");

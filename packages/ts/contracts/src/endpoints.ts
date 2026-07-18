@@ -205,6 +205,16 @@ export const ENDPOINTS: readonly EndpointDef[] = [
     response: TtsGenerateResponse,
   },
   {
+    method: "post",
+    path: "/v1/admin/books/search",
+    operationId: "adminSearchBooks",
+    summary: "Admin-scoped catalog search (same deterministic search as searchBooks, gated by admin_panel session instead of a user JWT).",
+    tag: "admin",
+    auth: "admin_panel",
+    request: BookSearchRequest,
+    response: BookSearchResponse,
+  },
+  {
     method: "get",
     path: "/v1/admin/books/:id/grounding",
     operationId: "adminGetGrounding",
