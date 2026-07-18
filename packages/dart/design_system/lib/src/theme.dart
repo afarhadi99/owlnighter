@@ -67,6 +67,32 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
       ),
+      // Bottom navigation reads as part of the night: a near-opaque plum bar
+      // with a twilight-violet active pill, matching the prototype's dock.
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: brightness == Brightness.dark
+            ? AppColors.night900
+            : surfaceContainer,
+        indicatorColor: AppColors.twilight.withValues(alpha: 0.22),
+        elevation: 0,
+        height: 68,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? AppColors.twilightHi
+                : AppColors.faint,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => AppType.caption.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? AppColors.twilightHi
+                : AppColors.faint,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       // Curved page transitions everywhere; reduced-motion is handled per-widget.
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
