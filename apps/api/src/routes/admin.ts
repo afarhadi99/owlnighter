@@ -45,6 +45,25 @@ function maskToken(token: string): string {
   return `${token.slice(0, 6)}…${token.slice(-4)}`;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve an admin-supplied book identifier that — per the admin UI's
+ * advertised input ("Book ID (UUID or ISBN-13)") and the Books page, which
+ * links to grounding using isbn13 because catalog candidates don't carry a
+ * book UUID — may be either the `books.id` UUID or an isbn13 string.
+ *
+ * `books.id` is a Postgres `uuid` column, so comparing it against a
+ * non-UUID string throws at the type level (`invalid input syntax for type
+ * uuid`) instead of just finding no rows. We must branch on shape *before*
+ * querying rather than let a single `eq()` fall through to "not found".
+ */
+async function findBookByIdOrIsbn(deps: Deps, idOrIsbn: string) {
+  const column = UUID_RE.test(idOrIsbn) ? schema.books.id : schema.books.isbn13;
+  const rows = await deps.db.select().from(schema.books).where(eq(column, idOrIsbn)).limit(1);
+  return rows[0];
+}
+
 /** Columns on `books` an admin override is allowed to write. Guards against
  * arbitrary key injection from the free-form fieldOverrides record. */
 const OVERRIDABLE = new Set([
@@ -74,12 +93,14 @@ export function registerAdminRoutes(app: FastifyInstance, deps: Deps): void {
   });
 
   register<never, AdminGroundingResponse>(app, deps, "adminGetGrounding", async ({ params }) => {
-    const bookId = params["id"];
-    if (!bookId) throw badRequest("Missing book id.");
+    const idOrIsbn = params["id"];
+    if (!idOrIsbn) throw badRequest("Missing book id.");
 
-    const bookRows = await deps.db.select().from(schema.books).where(eq(schema.books.id, bookId)).limit(1);
-    const book = bookRows[0];
+    const book = await findBookByIdOrIsbn(deps, idOrIsbn);
     if (!book) throw notFound("Book not found.");
+    // Everything downstream is keyed by the real books.id UUID, regardless of
+    // whether the caller looked the book up by isbn13.
+    const bookId = book.id;
 
     const runRows = await deps.db
       .select()
@@ -151,11 +172,14 @@ export function registerAdminRoutes(app: FastifyInstance, deps: Deps): void {
 
   // No response schema → 204 on success.
   register<AdminOverrideRequest, void>(app, deps, "adminOverrideBook", async ({ params, body }) => {
-    const bookId = params["id"];
-    if (!bookId) throw badRequest("Missing book id.");
+    const idOrIsbn = params["id"];
+    if (!idOrIsbn) throw badRequest("Missing book id.");
 
-    const bookRows = await deps.db.select({ id: schema.books.id }).from(schema.books).where(eq(schema.books.id, bookId)).limit(1);
-    if (!bookRows[0]) throw notFound("Book not found.");
+    const book = await findBookByIdOrIsbn(deps, idOrIsbn);
+    if (!book) throw notFound("Book not found.");
+    // Write against the real UUID — idOrIsbn may be an isbn13 string, which
+    // Postgres would otherwise reject as an invalid uuid literal below.
+    const bookId = book.id;
 
     // Whitelist the fields we allow to be overwritten.
     const set: Record<string, unknown> = { updatedAt: new Date() };
