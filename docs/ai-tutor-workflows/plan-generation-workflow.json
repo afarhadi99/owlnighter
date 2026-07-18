@@ -1,0 +1,20 @@
+{
+  "name": "owlnighter Plan Generation",
+  "model": "gemini-3.5-flash",
+  "template": "{{system}}\n\n{{user}}",
+  "instruction": "",
+  "modelSettings": "{\"temperature\":0.4,\"maxTokens\":16000,\"enableWebSearch\":false,\"reasoningEffort\":\"none\",\"structuredOutputSchema\":\"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"book\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"canonicalTitle\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"authors\\\":{\\\"type\\\":\\\"array\\\",\\\"minItems\\\":1,\\\"items\\\":{\\\"type\\\":\\\"string\\\"}},\\\"editionLabel\\\":{\\\"type\\\":\\\"string\\\"},\\\"isbn13\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^\\\\\\\\d{13}$\\\"},\\\"googleBooksId\\\":{\\\"type\\\":\\\"string\\\"},\\\"openLibraryKey\\\":{\\\"type\\\":\\\"string\\\"},\\\"pageCount\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":1,\\\"maximum\\\":100000},\\\"languageCode\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":2,\\\"maxLength\\\":2},\\\"publishedYear\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":-3000,\\\"maximum\\\":2100},\\\"coverUrl\\\":{\\\"type\\\":\\\"string\\\",\\\"format\\\":\\\"uri\\\"},\\\"confidence\\\":{\\\"type\\\":\\\"number\\\",\\\"minimum\\\":0,\\\"maximum\\\":1}},\\\"required\\\":[\\\"canonicalTitle\\\",\\\"authors\\\",\\\"confidence\\\"],\\\"additionalProperties\\\":false},\\\"pacingMode\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"gentle\\\",\\\"standard\\\",\\\"intensive\\\"]},\\\"nightlyGoalPages\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":3,\\\"maximum\\\":50},\\\"rationale\\\":{\\\"type\\\":\\\"string\\\"},\\\"steps\\\":{\\\"type\\\":\\\"array\\\",\\\"minItems\\\":1,\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"stepIndex\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":0,\\\"maximum\\\":10000},\\\"title\\\":{\\\"type\\\":\\\"string\\\"},\\\"pageStart\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":0,\\\"maximum\\\":100000},\\\"pageEnd\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":0,\\\"maximum\\\":100000},\\\"chapterHint\\\":{\\\"type\\\":\\\"string\\\"},\\\"quizMode\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"grounded\\\",\\\"preview\\\",\\\"user_text\\\",\\\"fallback\\\"]},\\\"prompt\\\":{\\\"type\\\":\\\"string\\\"},\\\"confidence\\\":{\\\"type\\\":\\\"number\\\",\\\"minimum\\\":0,\\\"maximum\\\":1}},\\\"required\\\":[\\\"stepIndex\\\",\\\"title\\\",\\\"quizMode\\\",\\\"prompt\\\",\\\"confidence\\\"],\\\"additionalProperties\\\":false}},\\\"citations\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"title\\\":{\\\"type\\\":\\\"string\\\"},\\\"url\\\":{\\\"type\\\":\\\"string\\\",\\\"format\\\":\\\"uri\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"title\\\",\\\"url\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"book\\\",\\\"pacingMode\\\",\\\"nightlyGoalPages\\\",\\\"rationale\\\",\\\"steps\\\"],\\\"additionalProperties\\\":false}\"}",
+  "cacheControlTtl": 0,
+  "inputs": [
+    {
+      "name": "system",
+      "label": "System",
+      "type": "textarea"
+    },
+    {
+      "name": "user",
+      "label": "User",
+      "type": "textarea"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "owlnighter Book Grounding",
+  "model": "gemini-3.5-flash",
+  "template": "{{system}}\n\n{{user}}",
+  "instruction": "",
+  "modelSettings": "{\"temperature\":0.2,\"maxTokens\":16000,\"enableWebSearch\":true,\"reasoningEffort\":\"none\",\"structuredOutputSchema\":\"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"identity\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"canonicalTitle\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"authors\\\":{\\\"type\\\":\\\"array\\\",\\\"minItems\\\":1,\\\"items\\\":{\\\"type\\\":\\\"string\\\"}},\\\"editionLabel\\\":{\\\"type\\\":\\\"string\\\"},\\\"isbn13\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^\\\\\\\\d{13}$\\\"},\\\"googleBooksId\\\":{\\\"type\\\":\\\"string\\\"},\\\"openLibraryKey\\\":{\\\"type\\\":\\\"string\\\"},\\\"pageCount\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":1,\\\"maximum\\\":100000},\\\"languageCode\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":2,\\\"maxLength\\\":2},\\\"publishedYear\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":-3000,\\\"maximum\\\":2100},\\\"coverUrl\\\":{\\\"type\\\":\\\"string\\\",\\\"format\\\":\\\"uri\\\"},\\\"confidence\\\":{\\\"type\\\":\\\"number\\\",\\\"minimum\\\":0,\\\"maximum\\\":1}},\\\"required\\\":[\\\"canonicalTitle\\\",\\\"authors\\\",\\\"confidence\\\"],\\\"additionalProperties\\\":false},\\\"pageLevelUnsafe\\\":{\\\"type\\\":\\\"boolean\\\"},\\\"sources\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"sourceType\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"google_books\\\",\\\"open_library\\\",\\\"web\\\"]},\\\"url\\\":{\\\"type\\\":\\\"string\\\",\\\"format\\\":\\\"uri\\\"},\\\"title\\\":{\\\"type\\\":\\\"string\\\"},\\\"snippet\\\":{\\\"type\\\":\\\"string\\\"},\\\"trustScore\\\":{\\\"type\\\":\\\"number\\\",\\\"minimum\\\":0,\\\"maximum\\\":1}},\\\"required\\\":[\\\"sourceType\\\",\\\"trustScore\\\"],\\\"additionalProperties\\\":false}},\\\"facts\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"factType\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"page_count\\\",\\\"chapter_map\\\",\\\"character\\\",\\\"theme\\\",\\\"preview_segment\\\"]},\\\"key\\\":{\\\"type\\\":\\\"string\\\"},\\\"value\\\":{},\\\"confidence\\\":{\\\"type\\\":\\\"number\\\",\\\"minimum\\\":0,\\\"maximum\\\":1},\\\"sourceIndices\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"integer\\\"}}},\\\"required\\\":[\\\"factType\\\",\\\"key\\\",\\\"value\\\",\\\"confidence\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"identity\\\",\\\"pageLevelUnsafe\\\"],\\\"additionalProperties\\\":false}\"}",
+  "cacheControlTtl": 0,
+  "inputs": [
+    {
+      "name": "system",
+      "label": "System",
+      "type": "textarea"
+    },
+    {
+      "name": "user",
+      "label": "User",
+      "type": "textarea"
+    }
+  ]
+}
