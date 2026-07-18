@@ -68,42 +68,20 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-/** Animated count-up on mount; jumps straight to the final value under reduced motion. */
+/**
+ * Renders the real value immediately (identical on the server and on first
+ * client paint — StatTile is a Client Component, so a from-zero animate-in
+ * here would mean every fresh page load briefly shows "0%"/"0" for real,
+ * non-zero data before the animation catches up). Numbers a user reads as
+ * fact must never lie, even for 700ms — so no count-up for the literal value.
+ */
 function CountUp({ value, className }: { value: ReactNode; className?: string }) {
   const parsed = parseValue(value);
-  const reducedMotion = usePrefersReducedMotion();
-  const [display, setDisplay] = useState<number | null>(parsed ? (reducedMotion ? parsed.number : 0) : null);
-  const frame = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!parsed) return;
-    if (reducedMotion) {
-      setDisplay(parsed.number);
-      return;
-    }
-    const duration = 700;
-    const start = performance.now();
-    const target = parsed.number;
-
-    function tick(now: number) {
-      const t = Math.min(1, (now - start) / duration);
-      setDisplay(target * easeOutCubic(t));
-      if (t < 1) frame.current = requestAnimationFrame(tick);
-    }
-    frame.current = requestAnimationFrame(tick);
-    return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-    };
-    // Re-run only when the underlying number or motion preference changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsed?.number, reducedMotion]);
-
   if (!parsed) return <span className={className}>{value}</span>;
-
   return (
     <span className={className}>
       {parsed.prefix}
-      {formatNumber(display ?? parsed.number, parsed)}
+      {formatNumber(parsed.number, parsed)}
       {parsed.suffix}
     </span>
   );
