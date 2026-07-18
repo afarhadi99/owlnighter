@@ -117,7 +117,7 @@ const structuredOutputSchema = {
 // (components/console/workflow/workflow-model-settings.tsx).
 const modelSettings = {
   temperature: 0.4,
-  maxTokens: 2048,
+  maxTokens: 16000,
   enableWebSearch: true,
   reasoningEffort: "none",
   structuredOutputSchema: JSON.stringify(structuredOutputSchema),
