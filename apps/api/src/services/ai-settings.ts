@@ -16,6 +16,9 @@ export function createAiSettingsReader(settings: SettingsCache): SettingsReader 
         workflowPlanGeneration,
         workflowQuizGeneration,
         workflowRewrite,
+        defaultProvider,
+        groundingOverride,
+        planOverride,
         quizOverride,
         rewriteOverride,
       ] = await Promise.all([
@@ -28,6 +31,14 @@ export function createAiSettingsReader(settings: SettingsCache): SettingsReader 
         settings.get("ai_provider.ai_tutor_api.workflow_id.plan_generation", ""),
         settings.get("ai_provider.ai_tutor_api.workflow_id.quiz_generation", ""),
         settings.get("ai_provider.ai_tutor_api.workflow_id.rewrite", ""),
+        // The global default provider for any task without an explicit override.
+        settings.get<ProviderName | null>("ai_provider.default", null),
+        // Per-task overrides. Every task is overridable now that the router no
+        // longer hardcodes grounding/plan to Gemini; grounding/plan override
+        // keys are read defensively (they may not exist as settings yet — a
+        // missing key just yields null and falls through to the default).
+        settings.get<ProviderName | null>("ai_provider.task_override.book_grounding", null),
+        settings.get<ProviderName | null>("ai_provider.task_override.plan_generation", null),
         settings.get<ProviderName | null>("ai_provider.task_override.quiz_generation", null),
         settings.get<ProviderName | null>("ai_provider.task_override.rewrite", null),
       ]);
@@ -43,7 +54,10 @@ export function createAiSettingsReader(settings: SettingsCache): SettingsReader 
             rewrite: workflowRewrite || undefined,
           },
         },
+        ...(defaultProvider ? { default: defaultProvider } : {}),
         taskOverrides: {
+          ...(groundingOverride ? { book_grounding: groundingOverride } : {}),
+          ...(planOverride ? { plan_generation: planOverride } : {}),
           ...(quizOverride ? { quiz_generation: quizOverride } : {}),
           ...(rewriteOverride ? { rewrite: rewriteOverride } : {}),
         },

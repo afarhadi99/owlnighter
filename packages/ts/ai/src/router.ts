@@ -13,41 +13,50 @@ import type {
   ProviderAdapter,
   ProviderName,
   SettingsReader,
+  SettingsSnapshot,
 } from "./types.js";
 
-/** Only these two tasks may be reassigned via ai_provider.task_override.* —
- * book_grounding/plan_generation keep their hardcoded Gemini-first routing
- * (native Search Grounding and schema-strictness are Gemini-only capabilities
- * today; reassigning those tasks would silently break the honesty guarantees
- * the rest of the app depends on). */
-const TASK_OVERRIDABLE: ReadonlySet<AiTask> = new Set(["quiz_generation", "rewrite"]);
+/** Global fallback used only when ai_provider.default has not been configured
+ * yet. Not a task-specific lock: every task resolves through this same default
+ * unless an explicit per-task override reassigns it. */
+const DEFAULT_PROVIDER: ProviderName = "ai_tutor_api";
 
-/** Exported (but not re-exported from index.ts, so it stays out of the
- * package's public API) purely so router.test.ts can unit-test the
- * override-eligibility guard directly, independent of the requireGrounding
- * short-circuit above it and of generateObject's own upstream filtering. */
+/** Every provider, in the canonical order used to build a task's fallback
+ * chain after the preferred provider and Gemini. */
+const ALL_PROVIDERS: readonly ProviderName[] = ["gemini", "groq", "openrouter", "ai_tutor_api"];
+
+/**
+ * Resolve which provider a task routes to: an explicit per-task override
+ * (ai_provider.task_override.<task>) wins; otherwise the global default
+ * (ai_provider.default); otherwise the DEFAULT_PROVIDER constant. No task is
+ * hardcoded to a provider, and grounding/strict-schema requirements no longer
+ * force Gemini here — grounding runs on whichever provider serves the task
+ * (both Gemini and the AI Tutor API workflow support web-search grounding).
+ *
+ * Exported (but not re-exported from index.ts, so it stays out of the package's
+ * public API) purely so router.test.ts can unit-test resolution directly.
+ */
 export function preferredProvider(
-  opts: { task: AiTask; requireGrounding?: boolean; requireStrictSchema?: boolean },
-  taskOverride: ProviderName | undefined,
+  task: AiTask,
+  snap: Pick<SettingsSnapshot, "taskOverrides" | "default">,
 ): ProviderName {
-  if (opts.requireGrounding || opts.requireStrictSchema) return "gemini";
-  if (taskOverride && TASK_OVERRIDABLE.has(opts.task)) return taskOverride;
-  switch (opts.task) {
-    case "book_grounding":
-    case "plan_generation":
-      return "gemini";
-    case "rewrite":
-    case "quiz_generation":
-      return "groq";
-    default:
-      return "gemini";
-  }
+  return snap.taskOverrides[task] ?? snap.default ?? DEFAULT_PROVIDER;
 }
 
 export function createAiRouter(env: Env, settings: SettingsReader): AiRouter {
   const gemini = new GeminiAdapter(env);
 
-  async function adapterFor(name: ProviderName): Promise<{ adapter: ProviderAdapter; configured: boolean }> {
+  /** Build a provider's adapter and decide whether it can STRUCTURALLY serve
+   * `task` right now. A provider with no API key can't; ai_tutor_api
+   * additionally can't serve a task that has no workflow_id configured (its
+   * adapter would only throw "no workflow_id configured"). Task-aware so the
+   * router can skip a provider that would inevitably fail — this is what lets
+   * grounding fall back gracefully to Gemini when the AI Tutor grounding
+   * workflow hasn't been set up yet. */
+  async function adapterFor(
+    name: ProviderName,
+    task: AiTask,
+  ): Promise<{ adapter: ProviderAdapter; configured: boolean }> {
     switch (name) {
       case "gemini":
         return { adapter: gemini, configured: env.GEMINI_API_KEY.length > 0 };
@@ -68,7 +77,7 @@ export function createAiRouter(env: Env, settings: SettingsReader): AiRouter {
         const snap = await settings.snapshot();
         return {
           adapter: new AiTutorApiAdapter({ apiKey: snap.aiTutorApi.apiKey, workflowIds: snap.aiTutorApi.workflowIds }),
-          configured: snap.aiTutorApi.apiKey.length > 0,
+          configured: snap.aiTutorApi.apiKey.length > 0 && Boolean(snap.aiTutorApi.workflowIds[task]),
         };
       }
       default: {
@@ -78,26 +87,27 @@ export function createAiRouter(env: Env, settings: SettingsReader): AiRouter {
     }
   }
 
-  /** Whatever the preferred provider is, fall back to Gemini once if it isn't
-   * itself Gemini. Generalizes the original 2-provider behavior (a Groq-first
-   * call falls back to Gemini; a Gemini-first call never falls back) to 4
-   * providers without changing that semantic. */
+  /** The ordered fallback chain for a task: the resolved preferred provider
+   * first, then Gemini, then every remaining provider. De-duplicated,
+   * order-preserving. Providers that can't structurally serve the task are
+   * skipped by the caller (via adapterFor's `configured`), so a task whose
+   * preferred provider is ai_tutor_api-without-a-workflow_id degrades to
+   * Gemini (then any other configured provider) instead of hard-failing. */
   function order(pref: ProviderName): ProviderName[] {
-    return pref === "gemini" ? ["gemini"] : [pref, "gemini"];
+    return [...new Set<ProviderName>([pref, "gemini", ...ALL_PROVIDERS])];
   }
 
   return {
     async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<AiObjectResult<T>> {
       const snap = await settings.snapshot();
-      const override = TASK_OVERRIDABLE.has(opts.task) ? snap.taskOverrides[opts.task] : undefined;
-      const pref = preferredProvider(opts, override);
+      const pref = preferredProvider(opts.task, snap);
 
       let attempts = 0;
       let lastError: unknown;
       let triedAny = false;
 
       for (const providerName of order(pref)) {
-        const { adapter, configured } = await adapterFor(providerName);
+        const { adapter, configured } = await adapterFor(providerName, opts.task);
         if (!configured) continue;
         triedAny = true;
         const maxTriesHere = providerName === pref ? 2 : 1;
@@ -134,10 +144,9 @@ export function createAiRouter(env: Env, settings: SettingsReader): AiRouter {
 
     async generateText(opts: GenerateTextOptions): Promise<AiTextResult> {
       const snap = await settings.snapshot();
-      const override = TASK_OVERRIDABLE.has(opts.task) ? snap.taskOverrides[opts.task] : undefined;
-      const pref = preferredProvider({ task: opts.task }, override);
+      const pref = preferredProvider(opts.task, snap);
       for (const name of order(pref)) {
-        const { adapter, configured } = await adapterFor(name);
+        const { adapter, configured } = await adapterFor(name, opts.task);
         if (configured) return adapter.generateText(opts);
       }
       throw new Error(

@@ -39,7 +39,8 @@ interface FetchCall {
 
 /** Swap global fetch with a scripted sequence of JSON bodies. Also records
  * every call's (url, init) so tests can assert on what was actually sent
- * (e.g. which API key ended up in the Authorization header). */
+ * (e.g. which API key ended up in the Authorization header, or which
+ * provider endpoint was hit). */
 function scriptFetch(bodies: unknown[]): { restore: () => void; calls: FetchCall[] } {
   const original = globalThis.fetch;
   const calls: FetchCall[] = [];
@@ -66,11 +67,133 @@ function groqBody(obj: unknown) {
 function geminiBody(obj: unknown) {
   return { candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] } }] };
 }
+// AI Tutor API run endpoint returns a JSON-string `result` (the documented contract).
+function aiTutorBody(obj: unknown) {
+  return { success: true, result: JSON.stringify(obj) };
+}
 
-test("groq quiz output validates on first try", async () => {
-  const { restore } = scriptFetch([groqBody({ answer: "ok" })]);
+// ---- preferredProvider: pure resolution (override wins, else default, else fallback) ----
+
+test("preferredProvider: a task_override is now honored for ANY task, including book_grounding/plan_generation", () => {
+  // The old lock forced these two tasks to gemini regardless of the override.
+  // That guarantee is intentionally removed — the override must win now.
+  assert.equal(
+    preferredProvider("book_grounding", { taskOverrides: { book_grounding: "groq" }, default: "ai_tutor_api" }),
+    "groq",
+  );
+  assert.equal(
+    preferredProvider("plan_generation", { taskOverrides: { plan_generation: "openrouter" }, default: "ai_tutor_api" }),
+    "openrouter",
+  );
+});
+
+test("preferredProvider: with no override, the task routes to the global default", () => {
+  assert.equal(preferredProvider("book_grounding", { taskOverrides: {}, default: "ai_tutor_api" }), "ai_tutor_api");
+  assert.equal(preferredProvider("quiz_generation", { taskOverrides: {}, default: "gemini" }), "gemini");
+});
+
+test("preferredProvider: falls back to ai_tutor_api when no default is configured", () => {
+  assert.equal(preferredProvider("plan_generation", { taskOverrides: {} }), "ai_tutor_api");
+});
+
+// ---- routing through the full router ----
+
+test("with default=ai_tutor_api and a configured grounding workflow_id, book_grounding routes to ai_tutor_api", async () => {
+  const { restore, calls } = scriptFetch([aiTutorBody({ answer: "grounded-via-tutor" })]);
   try {
-    const router = createAiRouter(fakeEnv(), fakeSettings());
+    const router = createAiRouter(
+      fakeEnv(),
+      fakeSettings({
+        default: "ai_tutor_api",
+        aiTutorApi: { apiKey: "tutor-key", workflowIds: { book_grounding: "wf_bg" } },
+      }),
+    );
+    const res = await router.generateObject({
+      task: "book_grounding",
+      schemaName: "Schema",
+      schema: Schema,
+      system: "s",
+      user: "u",
+      requireGrounding: true, // no longer forces gemini
+    });
+    assert.equal(res.provider, "ai_tutor_api");
+    assert.equal(res.data.answer, "grounded-via-tutor");
+    assert.equal(res.attempts, 1);
+    // Confirm the AI Tutor run endpoint (with the configured workflow id) was hit.
+    assert.match(calls[0]!.url, /\/api\/v1\/run\/wf_bg$/);
+  } finally {
+    restore();
+  }
+});
+
+test("SAFETY: default=ai_tutor_api but NO workflow_id for book_grounding falls back to Gemini", async () => {
+  // Proves grounding keeps working during setup: ai_tutor_api is the default,
+  // but with no workflow_id it cannot serve the task, so the router degrades to
+  // Gemini (attempts === 1 proves Gemini was tried directly, not after a failed
+  // ai_tutor_api call).
+  const { restore, calls } = scriptFetch([geminiBody({ answer: "rescued-by-gemini" })]);
+  try {
+    const router = createAiRouter(
+      fakeEnv(),
+      fakeSettings({
+        default: "ai_tutor_api",
+        aiTutorApi: { apiKey: "tutor-key", workflowIds: {} }, // key present, but no workflow for the task
+      }),
+    );
+    const res = await router.generateObject({
+      task: "book_grounding",
+      schemaName: "Schema",
+      schema: Schema,
+      system: "s",
+      user: "u",
+      requireGrounding: true,
+    });
+    assert.equal(res.provider, "gemini");
+    assert.equal(res.data.answer, "rescued-by-gemini");
+    assert.equal(res.attempts, 1);
+    // Only Gemini was ever contacted — no doomed AI Tutor call was attempted.
+    assert.equal(calls.length, 1);
+    assert.match(calls[0]!.url, /generativelanguage\.googleapis\.com/);
+  } finally {
+    restore();
+  }
+});
+
+test("grounding requirement no longer forces gemini — it runs on the resolved provider", async () => {
+  // book_grounding overridden to groq; requireGrounding is set but must NOT
+  // re-route to gemini anymore.
+  const { restore } = scriptFetch([groqBody({ answer: "grounded-on-groq" })]);
+  try {
+    const router = createAiRouter(
+      fakeEnv(),
+      fakeSettings({ default: "ai_tutor_api", taskOverrides: { book_grounding: "groq" } }),
+    );
+    const res = await router.generateObject({
+      task: "book_grounding",
+      schemaName: "Schema",
+      schema: Schema,
+      system: "s",
+      user: "u",
+      requireGrounding: true,
+    });
+    assert.equal(res.provider, "groq");
+    assert.equal(res.data.answer, "grounded-on-groq");
+  } finally {
+    restore();
+  }
+});
+
+test("a task_override to ai_tutor_api routes quiz_generation there", async () => {
+  const { restore } = scriptFetch([aiTutorBody({ answer: "quiz-via-tutor" })]);
+  try {
+    const router = createAiRouter(
+      fakeEnv(),
+      fakeSettings({
+        default: "gemini",
+        aiTutorApi: { apiKey: "tutor-key", workflowIds: { quiz_generation: "wf_quiz" } },
+        taskOverrides: { quiz_generation: "ai_tutor_api" },
+      }),
+    );
     const res = await router.generateObject({
       task: "quiz_generation",
       schemaName: "Schema",
@@ -78,23 +201,26 @@ test("groq quiz output validates on first try", async () => {
       system: "s",
       user: "u",
     });
-    assert.equal(res.provider, "groq");
-    assert.equal(res.data.answer, "ok");
-    assert.equal(res.attempts, 1);
+    assert.equal(res.provider, "ai_tutor_api");
+    assert.equal(res.data.answer, "quiz-via-tutor");
   } finally {
     restore();
   }
 });
 
-test("invalid groq output retries then falls back to gemini", async () => {
-  // groq bad, groq bad (retry), gemini good.
+test("invalid preferred-provider output retries then falls back to gemini", async () => {
+  // groq is the resolved provider (override); it returns bad twice (retry), then
+  // gemini rescues. Confirms validate-and-retry + one fallback still hold.
   const { restore } = scriptFetch([
     groqBody({ wrong: 1 }),
     groqBody({ wrong: 2 }),
     geminiBody({ answer: "rescued" }),
   ]);
   try {
-    const router = createAiRouter(fakeEnv(), fakeSettings());
+    const router = createAiRouter(
+      fakeEnv(),
+      fakeSettings({ default: "ai_tutor_api", taskOverrides: { quiz_generation: "groq" } }),
+    );
     const res = await router.generateObject({
       task: "quiz_generation",
       schemaName: "Schema",
@@ -110,72 +236,16 @@ test("invalid groq output retries then falls back to gemini", async () => {
   }
 });
 
-test("grounding requirement routes straight to gemini", async () => {
-  const { restore } = scriptFetch([geminiBody({ answer: "grounded" })]);
-  try {
-    const router = createAiRouter(fakeEnv(), fakeSettings());
-    const res = await router.generateObject({
-      task: "quiz_generation",
-      schemaName: "Schema",
-      schema: Schema,
-      system: "s",
-      user: "u",
-      requireGrounding: true,
-    });
-    assert.equal(res.provider, "gemini");
-  } finally {
-    restore();
-  }
-});
-
-test("missing groq key routes quiz to gemini", async () => {
-  const { restore } = scriptFetch([geminiBody({ answer: "only-gemini" })]);
-  try {
-    const router = createAiRouter(fakeEnv({ GROQ_API_KEY: "" }), fakeSettings());
-    const res = await router.generateObject({
-      task: "quiz_generation",
-      schemaName: "Schema",
-      schema: Schema,
-      system: "s",
-      user: "u",
-    });
-    assert.equal(res.provider, "gemini");
-  } finally {
-    restore();
-  }
-});
-
-test("task override routes quiz_generation to openrouter when configured", async () => {
-  // OpenRouter's response shape is OpenAI-compatible, identical to Groq's fixture.
-  const { restore } = scriptFetch([groqBody({ answer: "from-or" })]);
-  try {
-    const router = createAiRouter(
-      fakeEnv({ GROQ_API_KEY: "" }),
-      fakeSettings({
-        openrouter: { apiKey: "or-key", model: "some/model" },
-        taskOverrides: { quiz_generation: "openrouter" },
-      }),
-    );
-    const res = await router.generateObject({
-      task: "quiz_generation",
-      schemaName: "Schema",
-      schema: Schema,
-      system: "s",
-      user: "u",
-    });
-    assert.equal(res.provider, "openrouter");
-    assert.equal(res.data.answer, "from-or");
-  } finally {
-    restore();
-  }
-});
-
 test("admin setting for groq api key wins over the env var when both are present", async () => {
   const { restore, calls } = scriptFetch([groqBody({ answer: "ok" })]);
   try {
     const router = createAiRouter(
       fakeEnv({ GROQ_API_KEY: "env-key" }),
-      fakeSettings({ groq: { apiKey: "admin-key", model: "admin-model" } }),
+      fakeSettings({
+        default: "ai_tutor_api",
+        groq: { apiKey: "admin-key", model: "admin-model" },
+        taskOverrides: { quiz_generation: "groq" },
+      }),
     );
     await router.generateObject({
       task: "quiz_generation",
@@ -192,49 +262,46 @@ test("admin setting for groq api key wins over the env var when both are present
   }
 });
 
-test("preferredProvider ignores a task override for book_grounding/plan_generation", () => {
-  // Direct unit test of the router's internal preferredProvider(), calling it
-  // with a truthy taskOverride for a non-overridable task — bypassing
-  // generateObject's own upstream `TASK_OVERRIDABLE.has(opts.task) ? ... :
-  // undefined` filter entirely (that filter is what normally prevents a
-  // taskOverride from ever reaching this function for these two tasks).
-  // This isolates preferredProvider's OWN guard — the
-  // `taskOverride && TASK_OVERRIDABLE.has(opts.task)` check — so a mutation
-  // that deletes just that check (e.g. changing it to `if (taskOverride)
-  // return taskOverride;`) makes this specific test fail, regardless of
-  // whether the upstream filter in generateObject/generateText still exists.
-  assert.equal(preferredProvider({ task: "book_grounding" }, "groq"), "gemini");
-  assert.equal(preferredProvider({ task: "plan_generation" }, "openrouter"), "gemini");
-});
-
-test("task override in settings is never applied to book_grounding, even without requireGrounding set", async () => {
-  const { restore } = scriptFetch([geminiBody({ answer: "grounded" })]);
+test("missing preferred-provider key skips it and uses the next configured provider", async () => {
+  // quiz overridden to groq, but groq has no key anywhere → skipped, gemini serves.
+  const { restore } = scriptFetch([geminiBody({ answer: "only-gemini" })]);
   try {
     const router = createAiRouter(
-      fakeEnv(),
-      // The real SettingsSnapshot type only allows overrides for quiz_generation/rewrite;
-      // this cast simulates a hypothetical upstream bug producing an out-of-contract
-      // shape, to prove the router doesn't honor it for book_grounding.
-      fakeSettings({ taskOverrides: { book_grounding: "groq" } as never }),
+      fakeEnv({ GROQ_API_KEY: "" }),
+      fakeSettings({ default: "ai_tutor_api", taskOverrides: { quiz_generation: "groq" } }),
     );
     const res = await router.generateObject({
-      task: "book_grounding",
+      task: "quiz_generation",
       schemaName: "Schema",
       schema: Schema,
       system: "s",
       user: "u",
-      // Deliberately NOT requireGrounding: that flag short-circuits to gemini
-      // on preferredProvider's very first line, before the override logic is
-      // ever reached — which would make this assertion pass for the wrong
-      // reason (that's exactly the confound the previous version of this
-      // test had).
     });
     assert.equal(res.provider, "gemini");
-    // attempts === 1 proves gemini was the PRIMARY (first-tried) provider —
-    // not reached via a groq-fails-then-falls-back-to-gemini path, which
-    // would *also* end in "gemini" even if preferredProvider's switch-case
-    // had a bug that mistakenly routed book_grounding to groq.
-    assert.equal(res.attempts, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("throws a clear error when no provider is configured for the task", async () => {
+  const { restore } = scriptFetch([geminiBody({ answer: "unused" })]);
+  try {
+    // No provider is usable: no gemini/groq env keys, ai_tutor_api has no key,
+    // openrouter unset.
+    const router = createAiRouter(
+      fakeEnv({ GEMINI_API_KEY: "", GROQ_API_KEY: "" }),
+      fakeSettings({ default: "ai_tutor_api" }),
+    );
+    await assert.rejects(
+      router.generateObject({
+        task: "book_grounding",
+        schemaName: "Schema",
+        schema: Schema,
+        system: "s",
+        user: "u",
+      }),
+      /No AI provider is configured/,
+    );
   } finally {
     restore();
   }

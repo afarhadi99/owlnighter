@@ -103,6 +103,18 @@ export interface SettingsSnapshot {
   groq: ProviderRuntimeConfig;
   openrouter: ProviderRuntimeConfig;
   aiTutorApi: AiTutorRuntimeConfig;
+  /**
+   * Global default provider (ai_provider.default). Any task with no explicit
+   * per-task override routes here. Optional so a settings reader that hasn't
+   * wired it up yet still type-checks; the router treats an absent value as
+   * "ai_tutor_api".
+   */
+  default?: ProviderName;
+  /**
+   * Explicit per-task provider assignments (ai_provider.task_override.<task>).
+   * ANY task may be reassigned to ANY provider — nothing is locked to a
+   * specific provider.
+   */
   taskOverrides: Partial<Record<AiTask, ProviderName>>;
 }
 
