@@ -20,8 +20,8 @@ void main() {
       await tester.pump();
 
       expect(find.text('Sound effects'), findsOneWidget);
-      // Sound effects + the new nightly-reminder toggle.
-      expect(find.byType(SwitchListTile), findsNWidgets(2));
+      // The two polished toggle rows: sound effects + the nightly reminder.
+      expect(find.text('Nightly reminder'), findsOneWidget);
       expect(find.text('Recap voice'), findsOneWidget);
       // Friendly label, not the raw model id.
       expect(find.text('Thalia — English (US)'), findsOneWidget);
@@ -45,8 +45,9 @@ void main() {
       await tester.pumpWidget(_host());
       await tester.pump();
 
-      // enableAdminDebug defaults to true in debug/test builds.
-      expect(find.text('Developer'), findsOneWidget);
+      // enableAdminDebug defaults to true in debug/test builds. The section
+      // label is rendered in the prototype's tracked uppercase style.
+      expect(find.text('DEVELOPER'), findsOneWidget);
       expect(find.text('Admin / debug'), findsOneWidget);
     });
   });
