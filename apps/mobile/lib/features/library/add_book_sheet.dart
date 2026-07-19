@@ -548,6 +548,10 @@ class _Cover extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = coverUrl;
     if (url != null && url.isNotEmpty) {
+      // See library_page.dart's _Cover: decode at the on-screen thumbnail
+      // size, not the (often much larger) source resolution, since this
+      // tile renders inside a scrolling search-results list.
+      final dpr = MediaQuery.devicePixelRatioOf(context);
       return ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Image.network(
@@ -555,6 +559,8 @@ class _Cover extends StatelessWidget {
           width: _w,
           height: _h,
           fit: BoxFit.cover,
+          cacheWidth: (_w * dpr).round(),
+          cacheHeight: (_h * dpr).round(),
           errorBuilder: (_, __, ___) => _fallback(),
         ),
       );

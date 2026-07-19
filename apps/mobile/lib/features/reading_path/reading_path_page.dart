@@ -64,7 +64,11 @@ class _PathMap extends ConsumerStatefulWidget {
 
 class _PathMapState extends ConsumerState<_PathMap> {
   final ScrollController _scroll = ScrollController();
-  double _scrollOffset = 0;
+  // Fed by [_onScroll] and consumed only by the [ValueListenableBuilder]
+  // wrapping [PathScenery] below — scrolling therefore repaints just the
+  // parallax background instead of rebuilding the whole node graph via
+  // setState (which used to run on every scroll frame).
+  final ValueNotifier<double> _scrollOffset = ValueNotifier<double>(0);
   int? _lastCompleted;
 
   @override
@@ -98,7 +102,10 @@ class _PathMapState extends ConsumerState<_PathMap> {
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
-    setState(() => _scrollOffset = _scroll.offset);
+    // No setState: only the scenery's ValueListenableBuilder listens to this,
+    // so a scroll frame repaints the parallax background, not the whole
+    // _PathMapState.build() (serpentine layout + every trail node).
+    _scrollOffset.value = _scroll.offset;
   }
 
   @override
@@ -106,6 +113,7 @@ class _PathMapState extends ConsumerState<_PathMap> {
     _scroll
       ..removeListener(_onScroll)
       ..dispose();
+    _scrollOffset.dispose();
     super.dispose();
   }
 
@@ -166,11 +174,16 @@ class _PathMapState extends ConsumerState<_PathMap> {
               return Stack(
                 children: [
                   // Parallax scenery behind the trail (moon off — the header
-                  // already sets the tone).
+                  // already sets the tone). Scoped to its own
+                  // ValueListenableBuilder so scroll updates only rebuild this
+                  // one widget, not the whole node graph below.
                   Positioned.fill(
-                    child: PathScenery(
-                      scrollOffset: _scrollOffset,
-                      showMoon: false,
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: _scrollOffset,
+                      builder: (context, offset, _) => PathScenery(
+                        scrollOffset: offset,
+                        showMoon: false,
+                      ),
                     ),
                   ),
                   SingleChildScrollView(

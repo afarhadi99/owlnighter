@@ -334,6 +334,12 @@ class _Cover extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = coverUrl;
     if (url != null && url.isNotEmpty) {
+      // Decode at the thumbnail's device-pixel size rather than the source
+      // image's native resolution — covers come from Google Books/OpenLibrary
+      // and are frequently much larger than this 60x88 slot, so without this
+      // every card in the library list decodes (and keeps resident) a far
+      // bigger bitmap than it ever paints.
+      final dpr = MediaQuery.devicePixelRatioOf(context);
       return ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Image.network(
@@ -341,6 +347,8 @@ class _Cover extends StatelessWidget {
           width: _w,
           height: _h,
           fit: BoxFit.cover,
+          cacheWidth: (_w * dpr).round(),
+          cacheHeight: (_h * dpr).round(),
           errorBuilder: (_, __, ___) => _fallback(),
         ),
       );
