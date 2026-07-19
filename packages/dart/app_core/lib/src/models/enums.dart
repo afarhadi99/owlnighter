@@ -5,7 +5,9 @@ library;
 
 enum AiProvider {
   gemini('gemini'),
-  groq('groq');
+  groq('groq'),
+  openrouter('openrouter'),
+  aiTutorApi('ai_tutor_api');
 
   const AiProvider(this.wire);
   final String wire;
