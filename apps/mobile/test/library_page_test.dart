@@ -21,7 +21,16 @@ class _StubLibraryRepo implements LibraryRepository {
 
 Widget _host(LibraryRepository repo) => ProviderScope(
       overrides: [libraryRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: LibraryPage()),
+      child: MaterialApp(
+        home: const LibraryPage(),
+        // Force reduced motion so NightScaffold's NightSky star-twinkle ticker
+        // renders static and pumpAndSettle can complete (it repeats forever
+        // otherwise).
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(disableAnimations: true),
+          child: child!,
+        ),
+      ),
     );
 
 void main() {
@@ -40,7 +49,9 @@ void main() {
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
 
-      expect(find.text('The Left Hand of Darkness'), findsOneWidget);
+      // The redesigned journey card shows the real title both on the storybook
+      // spine cover and as the card heading, so it renders more than once.
+      expect(find.text('The Left Hand of Darkness'), findsWidgets);
       expect(find.text('Ursula K. Le Guin'), findsOneWidget);
       // The old "Book 3ce25e75" placeholder must be gone.
       expect(find.textContaining('Book 3ce25e75'), findsNothing);
@@ -58,7 +69,8 @@ void main() {
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
 
-      expect(find.text('Book abcd1234'), findsOneWidget);
+      // Short-id fallback shows on both the spine cover and the card heading.
+      expect(find.text('Book abcd1234'), findsWidgets);
     });
 
     testWidgets('shows the empty state when the library is empty',

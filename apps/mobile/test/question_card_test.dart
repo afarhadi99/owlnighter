@@ -1,4 +1,5 @@
 import 'package:app_core/app_core.dart';
+import 'package:design_system/design_system.dart' show AppColors;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:owlnighter/features/quiz/question_card.dart';
@@ -8,6 +9,18 @@ import 'package:owlnighter/services/api/extras_api.dart';
 /// (which needs a bounded height) and Material widgets (InkWell, TextField)
 /// have the ancestry they require.
 Widget _host(Widget child) => MaterialApp(home: Scaffold(body: child));
+
+/// The border color of the answer card wrapping [label] — the redesign carries
+/// each option's state (idle / selected / correct / wrong) in its card border.
+Color _optionBorderColor(WidgetTester tester, String label) {
+  final container = tester.widget<AnimatedContainer>(
+    find.ancestor(
+      of: find.text(label),
+      matching: find.byType(AnimatedContainer),
+    ),
+  );
+  return ((container.decoration! as BoxDecoration).border! as Border).top.color;
+}
 
 QuizQuestion _mcQuestion() => const QuizQuestion(
       id: 'q1',
@@ -57,7 +70,8 @@ void main() {
       expect(picked, 'Queequeg');
     });
 
-    testWidgets('selected option shows the checked radio icon', (tester) async {
+    testWidgets('selected option is highlighted; the others stay idle',
+        (tester) async {
       await tester.pumpWidget(
         _host(
           QuestionCard(
@@ -68,12 +82,12 @@ void main() {
         ),
       );
 
-      expect(find.byIcon(Icons.radio_button_checked_rounded), findsOneWidget);
-      // Two remaining unselected options.
-      expect(
-        find.byIcon(Icons.radio_button_unchecked_rounded),
-        findsNWidgets(2),
-      );
+      // The redesign lifts the picked option into the twilight-violet selected
+      // state (indigo card border + filled letter key); the remaining two
+      // options stay in the idle state (plain line border).
+      expect(_optionBorderColor(tester, 'Ahab'), AppColors.indigo400);
+      expect(_optionBorderColor(tester, 'Ishmael'), AppColors.line);
+      expect(_optionBorderColor(tester, 'Queequeg'), AppColors.line);
     });
 
     testWidgets('a correct verdict restyles the chosen option green',
@@ -93,8 +107,10 @@ void main() {
         ),
       );
 
-      // The correct option shows the green check-circle; inputs are locked.
-      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      // The correct option turns green (success border) and its key box flips
+      // to a ✓ badge; inputs are locked once checked.
+      expect(_optionBorderColor(tester, 'Ishmael'), AppColors.successJuice);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
       await tester.tap(find.text('Ishmael'));
       await tester.pump();
       expect(selectedAgain, isFalse);
@@ -116,9 +132,12 @@ void main() {
         ),
       );
 
-      // Wrong pick → red cancel icon; correct option → green check-circle.
-      expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      // Wrong pick → red (danger) card with a ✗ badge; the correct option is
+      // revealed in green with a ✓ badge.
+      expect(_optionBorderColor(tester, 'Ahab'), AppColors.danger500);
+      expect(_optionBorderColor(tester, 'Ishmael'), AppColors.successJuice);
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     });
 
     testWidgets('true/false question renders exactly True and False',

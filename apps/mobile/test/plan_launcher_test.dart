@@ -160,7 +160,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Couldn’t open your path'), findsNothing);
-      expect(find.text('Your reading path'), findsOneWidget);
+      // The redesigned reading path leads with a "NOW READING" hero kicker.
+      expect(find.text('NOW READING'), findsOneWidget);
       expect(find.text('Opening chapter'), findsWidgets);
       // Still only the one (failed) generate; retry reused the persisted plan.
       expect(repo.generateCalls, 1);
@@ -172,7 +173,7 @@ void main() {
       await tester.pumpWidget(_host(repo));
       await tester.pumpAndSettle();
 
-      expect(find.text('Your reading path'), findsOneWidget);
+      expect(find.text('NOW READING'), findsOneWidget);
       expect(find.text('Opening chapter'), findsWidgets);
       expect(repo.listCalls, 1);
       expect(repo.generateCalls, 0);

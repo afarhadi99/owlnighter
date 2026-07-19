@@ -84,7 +84,12 @@ void main() {
       await tester.pumpWidget(_host(_result(passed: true)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Continue'.toUpperCase()));
+      // The celebration content scrolls on short viewports; bring CONTINUE into
+      // view before tapping it.
+      final continueButton = find.text('Continue'.toUpperCase());
+      await tester.ensureVisible(continueButton);
+      await tester.pumpAndSettle();
+      await tester.tap(continueButton);
       await tester.pumpAndSettle();
 
       expect(find.text('PATH MAP'), findsOneWidget);

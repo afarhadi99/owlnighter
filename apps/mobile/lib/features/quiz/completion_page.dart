@@ -118,146 +118,169 @@ class _CompletionPageState extends ConsumerState<CompletionPage>
               child: IgnorePointer(child: ConfettiBurst(autoPlay: true)),
             ),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                children: [
-                  const Spacer(),
-                  // The cheering owl over its streak flame — pops in on a spring.
-                  _OwlPopIn(
-                    reveal: _reveal,
-                    child: SizedBox(
-                      height: 150,
-                      child: Stack(
-                        alignment: Alignment.center,
+            // The celebration content is centered between two Spacers with the
+            // CONTINUE button pinned at the foot. On a phone that fits with room
+            // to spare, but under a short viewport (small device / large font
+            // scale) the fixed-height children can exceed the available height.
+            // Wrapping in a SingleChildScrollView + minHeight'd IntrinsicHeight
+            // keeps the exact spring-centered phone layout when there's room
+            // (the column is stretched to the viewport so the Spacers expand)
+            // and gracefully scrolls instead of overflowing when there isn't.
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
                         children: [
-                          if (passed)
-                            Positioned(
-                              bottom: 0,
-                              child: FlameFlicker(
-                                intensity: intensity,
-                                size: 92,
-                                semanticLabel:
-                                    '${streak.currentStreak}-day streak flame',
+                          const Spacer(),
+                          // The cheering owl over its streak flame — pops in on a spring.
+                          _OwlPopIn(
+                            reveal: _reveal,
+                            child: SizedBox(
+                              height: 150,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  if (passed)
+                                    Positioned(
+                                      bottom: 0,
+                                      child: FlameFlicker(
+                                        intensity: intensity,
+                                        size: 92,
+                                        semanticLabel:
+                                            '${streak.currentStreak}-day streak flame',
+                                      ),
+                                    ),
+                                  Align(
+                                    alignment: passed
+                                        ? Alignment.topCenter
+                                        : Alignment.center,
+                                    child: OwlMascot(
+                                      state: passed
+                                          ? OwlState.cheer
+                                          : OwlState.idle,
+                                      size: 108,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          Align(
-                            alignment: passed
-                                ? Alignment.topCenter
-                                : Alignment.center,
-                            child: OwlMascot(
-                              state: passed ? OwlState.cheer : OwlState.idle,
-                              size: 108,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          _RiseIn(
+                            reveal: _reveal,
+                            start: 0.25,
+                            end: 0.55,
+                            child: Text(
+                              passed ? 'Night complete!' : 'Good effort',
+                              style: AppType.display,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _RiseIn(
+                            reveal: _reveal,
+                            start: 0.32,
+                            end: 0.62,
+                            child: Text(
+                              passed
+                                  ? 'You earned tonight\'s reading — and kept the lamp lit.'
+                                  : 'Keep going — every night counts.',
+                              style: AppType.body
+                                  .copyWith(color: AppColors.inkMuted),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          _RiseIn(
+                            reveal: _reveal,
+                            start: 0.4,
+                            end: 0.7,
+                            child: XpCounter(
+                              value: streak.xpGained,
+                              prefix: '+',
+                              suffix: ' XP',
+                              color: AppColors.amber500,
+                            ),
+                          ),
+                          if (passed) ...[
+                            const SizedBox(height: AppSpacing.lg),
+                            _RiseIn(
+                              reveal: _reveal,
+                              start: 0.6,
+                              end: 0.9,
+                              child: _StreakBanner(
+                                streak: streak,
+                                intensity: intensity,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          _RiseIn(
+                            reveal: _reveal,
+                            start: 0.7,
+                            end: 1.0,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: StatCard(
+                                    label: 'XP',
+                                    accent: AppColors.amber500,
+                                    icon: Icons.bolt_rounded,
+                                    value: Text('+${streak.xpGained}'),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: StatCard(
+                                    label: 'Accuracy',
+                                    accent: AppColors.indigo400,
+                                    icon: Icons.track_changes_rounded,
+                                    value: Text('$accuracy%'),
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: StatCard(
+                                    label: 'Streak',
+                                    accent: AppColors.flame500,
+                                    value: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        FlameFlicker(
+                                          intensity: intensity,
+                                          size: 22,
+                                          semanticLabel: 'streak flame',
+                                        ),
+                                        const SizedBox(width: AppSpacing.xs),
+                                        Text('${streak.currentStreak}'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          _RiseIn(
+                            reveal: _reveal,
+                            start: 0.85,
+                            end: 1.0,
+                            child: ChunkyButton(
+                              label: 'Continue',
+                              fullWidth: true,
+                              variant: ChunkyButtonVariant.success,
+                              onPressed: _continue,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _RiseIn(
-                    reveal: _reveal,
-                    start: 0.25,
-                    end: 0.55,
-                    child: Text(
-                      passed ? 'Night complete!' : 'Good effort',
-                      style: AppType.display,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  _RiseIn(
-                    reveal: _reveal,
-                    start: 0.32,
-                    end: 0.62,
-                    child: Text(
-                      passed
-                          ? 'You earned tonight\'s reading — and kept the lamp lit.'
-                          : 'Keep going — every night counts.',
-                      style: AppType.body.copyWith(color: AppColors.inkMuted),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _RiseIn(
-                    reveal: _reveal,
-                    start: 0.4,
-                    end: 0.7,
-                    child: XpCounter(
-                      value: streak.xpGained,
-                      prefix: '+',
-                      suffix: ' XP',
-                      color: AppColors.amber500,
-                    ),
-                  ),
-                  if (passed) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    _RiseIn(
-                      reveal: _reveal,
-                      start: 0.6,
-                      end: 0.9,
-                      child: _StreakBanner(streak: streak, intensity: intensity),
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.lg),
-                  _RiseIn(
-                    reveal: _reveal,
-                    start: 0.7,
-                    end: 1.0,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: StatCard(
-                            label: 'XP',
-                            accent: AppColors.amber500,
-                            icon: Icons.bolt_rounded,
-                            value: Text('+${streak.xpGained}'),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: StatCard(
-                            label: 'Accuracy',
-                            accent: AppColors.indigo400,
-                            icon: Icons.track_changes_rounded,
-                            value: Text('$accuracy%'),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: StatCard(
-                            label: 'Streak',
-                            accent: AppColors.flame500,
-                            value: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FlameFlicker(
-                                  intensity: intensity,
-                                  size: 22,
-                                  semanticLabel: 'streak flame',
-                                ),
-                                const SizedBox(width: AppSpacing.xs),
-                                Text('${streak.currentStreak}'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  _RiseIn(
-                    reveal: _reveal,
-                    start: 0.85,
-                    end: 1.0,
-                    child: ChunkyButton(
-                      label: 'Continue',
-                      fullWidth: true,
-                      variant: ChunkyButtonVariant.success,
-                      onPressed: _continue,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

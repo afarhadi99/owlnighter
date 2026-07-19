@@ -137,11 +137,18 @@ class _OptionTile extends StatefulWidget {
 
 class _OptionTileState extends State<_OptionTile>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _feedback = AnimationController(
-    vsync: this,
-    duration: AppMotion.slow,
-  );
+  // Created eagerly in initState (not lazily at first paint) so it always
+  // exists by dispose. Under reduced motion the feedback beat never runs, so a
+  // lazy `late final` would be first touched in dispose() — which creates a
+  // Ticker during unmount and crashes on an unsafe ancestor lookup.
+  late final AnimationController _feedback;
   bool _pressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedback = AnimationController(vsync: this, duration: AppMotion.slow);
+  }
 
   @override
   void didUpdateWidget(covariant _OptionTile oldWidget) {

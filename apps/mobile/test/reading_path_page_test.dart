@@ -109,9 +109,12 @@ void main() {
       // The new art layers are present behind the painted path.
       expect(find.byType(NightSky), findsOneWidget);
       expect(find.byType(PathScenery), findsOneWidget);
-      // The nodes still render.
-      expect(find.byType(PathNode), findsNWidgets(2));
+      // The redesigned trail renders one node per step: each carries its
+      // "NIGHT n" kicker and the step title.
+      expect(find.text('NIGHT 1'), findsOneWidget);
+      expect(find.text('NIGHT 2'), findsOneWidget);
       expect(find.text('Chapter One'), findsOneWidget);
+      expect(find.text('Chapter Two'), findsOneWidget);
     });
 
     testWidgets('tapping the available node plays the tap cue', (tester) async {
@@ -119,8 +122,9 @@ void main() {
       await tester.pumpWidget(_host(_StubPlanRepo(_plan()), sfx));
       await tester.pumpAndSettle();
 
-      // Tap the first node (available). Node label carries the title.
-      await tester.tap(find.byType(PathNode).first);
+      // Tap the available (tonight's) node — it carries the open-book icon.
+      // The locked second node has a lock icon and is not tappable.
+      await tester.tap(find.byIcon(Icons.auto_stories_rounded));
       await tester.pump();
 
       expect(sfx.played, contains(SoundEffect.tap));
