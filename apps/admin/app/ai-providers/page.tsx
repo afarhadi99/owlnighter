@@ -33,6 +33,8 @@ export default async function AiProvidersPage() {
 
       <DefaultProviderCard
         defaultProvider={str("ai_provider.default") || "ai_tutor_api"}
+        groundingOverride={str("ai_provider.task_override.book_grounding")}
+        planOverride={str("ai_provider.task_override.plan_generation")}
         quizOverride={str("ai_provider.task_override.quiz_generation")}
         rewriteOverride={str("ai_provider.task_override.rewrite")}
       />
@@ -107,6 +109,18 @@ export default async function AiProvidersPage() {
             placeholder: configured("ai_provider.ai_tutor_api.api_key") ? "•••• configured" : "not set",
           },
           {
+            key: "ai_provider.ai_tutor_api.workflow_id.book_grounding",
+            label: "Workflow ID — book grounding",
+            type: "text",
+            defaultValue: str("ai_provider.ai_tutor_api.workflow_id.book_grounding"),
+          },
+          {
+            key: "ai_provider.ai_tutor_api.workflow_id.plan_generation",
+            label: "Workflow ID — plan generation",
+            type: "text",
+            defaultValue: str("ai_provider.ai_tutor_api.workflow_id.plan_generation"),
+          },
+          {
             key: "ai_provider.ai_tutor_api.workflow_id.quiz_generation",
             label: "Workflow ID — quiz generation",
             type: "text",
@@ -121,11 +135,11 @@ export default async function AiProvidersPage() {
         ]}
       >
         <p className="mt-2 text-xs text-muted">
-          Workflow IDs come from importing{" "}
-          <code>docs/ai-tutor-workflows/quiz-generation-workflow.json</code> into your AI Tutor API console (see
-          that folder&apos;s README). Only tasks eligible for a provider override (quiz generation, rewrite) have a
-          configurable workflow here — book grounding and plan generation always route to Gemini and have no AI
-          Tutor API workflow to set up.
+          Workflow IDs come from importing the matching JSON in{" "}
+          <code>docs/ai-tutor-workflows/</code> into your AI Tutor API console (see that folder&apos;s README) —
+          the import endpoint requires your browser session, so this is a manual one-time step per workflow. A
+          task with a provider override set to AI Tutor API but no workflow ID here falls back to Gemini
+          automatically until you fill it in.
         </p>
       </ProviderCard>
     </div>

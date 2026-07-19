@@ -14,6 +14,7 @@ import {
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
 import { notFound, unavailable } from "../plugins/errors.js";
+import { isTaskConfigured } from "./ai-availability.js";
 import type { AuthUser } from "../types.js";
 
 const SYSTEM_PROMPT = [
@@ -113,13 +114,12 @@ export async function generatePlan(deps: Deps, user: AuthUser, req: PlanGenerate
   }
 
   // Provider selection for plan_generation is owned entirely by the AI router
-  // (createAiRouter/generateObject in packages/ts/ai/src/router.ts). That task is
-  // hardcoded to Gemini and is NOT in TASK_OVERRIDABLE, so no admin override or
-  // env key can reroute it — a missing Gemini key therefore has no fallback. We
-  // pre-check it here so a no-provider-configured environment gets a clear 503
+  // (createAiRouter/generateObject in packages/ts/ai/src/router.ts) and is fully
+  // overridable via admin settings — nothing here is pinned to a specific
+  // provider. This pre-check just turns "nothing configured" into a clear 503
   // instead of the bare Error the router would throw (which maps to a 500).
-  if (deps.config.env.GEMINI_API_KEY.length === 0) {
-    throw unavailable("Plan generation unavailable: GEMINI_API_KEY is not configured.");
+  if (!(await isTaskConfigured(deps, "plan_generation"))) {
+    throw unavailable("Plan generation unavailable: no AI provider is configured for plan generation.");
   }
 
   const identity = loadIdentity(book);

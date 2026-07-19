@@ -247,6 +247,25 @@ export const adminSessions = pgTable("admin_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const referralCodes = pgTable("referral_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull(),
+  label: text("label"),
+  maxUses: integer("max_uses"),
+  useCount: integer("use_count").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdBy: uuid("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const referralRedemptions = pgTable("referral_redemptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  referralCodeId: uuid("referral_code_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const appSettings = pgTable("app_settings", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),

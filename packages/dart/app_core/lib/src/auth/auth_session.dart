@@ -24,13 +24,14 @@ class AuthSession {
     String? accessToken,
     String? refreshToken,
     DateTime? expiresAt,
+    bool? isAdmin,
   }) =>
       AuthSession(
         userId: userId,
         accessToken: accessToken ?? this.accessToken,
         refreshToken: refreshToken ?? this.refreshToken,
         expiresAt: expiresAt ?? this.expiresAt,
-        isAdmin: isAdmin,
+        isAdmin: isAdmin ?? this.isAdmin,
       );
 
   factory AuthSession.fromJson(Map<String, dynamic> json) => AuthSession(

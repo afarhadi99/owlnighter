@@ -72,19 +72,16 @@ entry (confirmed to support both `webSearch` and `structuredOutput`) — unrelat
 to owlnighter's own `GEMINI_MODEL` env var / Gemini adapter; don't confuse the
 two even though the name looks similar.
 
-### Important: routing caveat for book_grounding / plan_generation
+### Routing: both workflows are live once imported
 
-As of today these two workflows **cannot actually be exercised** by the running
-app even after you import them and set their ids. `packages/ts/ai/src/router.ts`
-hardcodes `book_grounding` and `plan_generation` to Gemini
-(`preferredProvider` returns `"gemini"` for both; `book_grounding` additionally
-forces Gemini via `requireGrounding: true`), and neither task is in
-`TASK_OVERRIDABLE`, so no admin override or provider default can reroute them to
-`ai_tutor_api`. `packages/ts/contracts/src/settings.ts` documents the same thing
-and the admin UI hides both fields. These workflow definitions + ids are prepared
-for **forward compatibility**: if that hardcoded-Gemini routing is ever relaxed,
-the workflows, schema, and settings keys are already in place. (Enabling the
-routing itself is a `packages/` change, out of scope for this folder.)
+`book_grounding` and `plan_generation` are fully provider-overridable, the same
+as quiz generation and rewrite — `packages/ts/ai/src/router.ts` resolves every
+task as `taskOverrides[task] ?? default ?? "ai_tutor_api"`, with no
+task-specific hardcoding. Set the override in **admin panel → AI Providers →
+Default provider & task overrides**, and paste each workflow's id into the
+matching **AI Tutor API → Workflow ID — book grounding / plan generation**
+field. Until a workflow id is set, that task's AI Tutor API attempt is skipped
+structurally (not attempted and failed) and it falls back to Gemini.
 
 ## The quiz workflow (named-variable style)
 

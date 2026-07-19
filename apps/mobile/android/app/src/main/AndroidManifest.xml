@@ -47,6 +47,17 @@
                     android:host="app.example.com"
                     android:pathPrefix="/plan"/>
             </intent-filter>
+
+            <!-- Supabase Auth OAuth (Google) redirect callback. supabase_flutter
+                 listens for this internally once Supabase.initialize has run
+                 (see AuthRepositoryImpl); it must also be added to the Supabase
+                 project's "Additional Redirect URLs". -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="owlnighterauth" android:host="login-callback"/>
+            </intent-filter>
         </activity>
 
         <!-- Dynamic launcher icon (owl mood): four activity-alias entries all

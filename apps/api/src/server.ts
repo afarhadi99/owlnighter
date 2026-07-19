@@ -1,5 +1,20 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.js";
 import { getConfig } from "./config.js";
+
+// loadEnv() (called by getConfig() below) only reads process.env — it does not
+// read .env itself. `pnpm dev`/`tsx watch` invoke this file directly with no
+// --env-file flag, so without this, every var silently falls back to its
+// Zod default (e.g. DATABASE_URL defaults to 127.0.0.1:54322 — a different,
+// unrelated project's Postgres container — instead of failing loudly).
+// process.loadEnvFile is a no-op-safe try/catch: production has no .env file
+// and gets its config from the real environment instead.
+try {
+  process.loadEnvFile(resolve(dirname(fileURLToPath(import.meta.url)), "../../../.env"));
+} catch {
+  // No .env file (production) — env vars come from the real environment.
+}
 
 /** Boot the HTTP server. Fails fast on env/config errors (loadEnv throws). */
 async function main(): Promise<void> {

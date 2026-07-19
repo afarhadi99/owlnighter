@@ -29,6 +29,10 @@ dependencies:
   # Networking (used transitively via api_client, declared for direct config).
   dio: ^5.7.0
 
+  # Auth: Supabase Auth (GoTrue) — email/password + Google OAuth. Every new
+  # account also redeems an admin-issued referral code (see features/auth).
+  supabase_flutter: ^2.16.0
+
   # Device.
   flutter_secure_storage: ^9.2.2
   connectivity_plus: ^6.0.5

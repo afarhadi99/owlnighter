@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../app/app.dart';
 import '../app/router.dart';
@@ -16,6 +17,7 @@ import '../services/notifications/reminder_settings.dart';
 import '../services/push/push_service.dart';
 import '../services/widget/home_widget_bridge.dart';
 import '../shared/mood/owl_mood.dart';
+import '../shared/util/env.dart';
 
 /// App entry point. Runs inside a guarded [Zone] so uncaught async errors are
 /// captured centrally, and restores any persisted session before first frame.
@@ -29,6 +31,21 @@ void main() {
         FlutterError.presentError(details);
         _reportError(details.exception, details.stack);
       };
+
+      // Supabase Auth (GoTrue). Must run before anything reads
+      // authRepositoryProvider — its OAuth completion listener touches
+      // Supabase.instance.client immediately on construction. Safe to call
+      // even with a blank anon key (see AppEnv.supabaseAnonKey); real auth
+      // calls simply fail until the user supplies the real key.
+      //
+      // `anonKey` (not the newer `publishableKey`) is intentional: this
+      // project's self-hosted local Supabase stack issues classic JWT anon
+      // keys, not the Supabase-Cloud-only `sb_publishable_...` format.
+      await Supabase.initialize(
+        url: AppEnv.supabaseUrl,
+        // ignore: deprecated_member_use
+        anonKey: AppEnv.supabaseAnonKey,
+      );
 
       final container = ProviderContainer();
 

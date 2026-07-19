@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../app/router.dart';
 import '../../services/sfx/sfx_service.dart';
 import '../../services/sfx/sound_effect.dart';
 import '../../shared/theme/theme_re_exports.dart';
@@ -121,6 +123,21 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       .read(authControllerProvider.notifier)
                       .magicLink(_email.text),
                   child: const Text('Email me a magic link'),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => ref
+                          .read(authControllerProvider.notifier)
+                          .signInWithGoogle(),
+                  icon: const Icon(Icons.login),
+                  label: const Text('Continue with Google'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextButton(
+                  onPressed: () => context.go(Routes.signup),
+                  child: const Text('New here? Create an account'),
                 ),
                 // Debug-only fast path into the app as the seeded dev user.
                 if (kDebugMode) ...[

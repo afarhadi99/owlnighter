@@ -183,6 +183,44 @@ class OwlnighterApi {
     return QuizResult.fromJson(json);
   }
 
+  // ---- POST /v1/auth/validate-referral-code → validateReferralCode ----
+  /// Checks a referral code without consuming it — for live feedback as the
+  /// user types, before they submit. Public endpoint (no bearer token
+  /// required); the authoritative check happens server-side at activation.
+  Future<({bool valid, String? reason})> validateReferralCode(
+    String code,
+  ) async {
+    final json = await _post('/v1/auth/validate-referral-code', {
+      'code': code,
+    });
+    return (
+      valid: json['valid'] as bool,
+      reason: json['reason'] as String?,
+    );
+  }
+
+  // ---- GET /v1/auth/status → getAuthStatus ----
+  /// Whether the caller's Supabase session has an activated (referral-code
+  /// redeemed) `profiles` row yet.
+  Future<bool> getAuthStatus() async {
+    final json = await _get('/v1/auth/status');
+    return json['activated'] as bool;
+  }
+
+  // ---- POST /v1/auth/activate → activateAccount ----
+  /// Atomically consumes [referralCode] and creates the caller's `profiles`
+  /// row. Idempotent — safe to call again for an already-activated user.
+  Future<ActivatedProfile> activateAccount({
+    required String referralCode,
+    String? displayName,
+  }) async {
+    final json = await _post('/v1/auth/activate', {
+      'referralCode': referralCode,
+      if (displayName != null) 'displayName': displayName,
+    });
+    return ActivatedProfile.fromJson(json);
+  }
+
   // ---- POST /v1/push/register → registerPushToken (no response body) ----
   Future<void> registerPushToken({
     required String token,
@@ -278,6 +316,27 @@ class TtsAsset {
         cached: json['cached'] as bool,
         storagePath: json['storagePath'] as String,
         durationMs: json['durationMs'] as int?,
+      );
+}
+
+/// The caller's profile just after redeeming a referral code. Mirrors
+/// `ActivateAccountResponse`.
+class ActivatedProfile {
+  const ActivatedProfile({
+    required this.id,
+    required this.displayName,
+    required this.isAdmin,
+  });
+
+  final String id;
+  final String? displayName;
+  final bool isAdmin;
+
+  factory ActivatedProfile.fromJson(Map<String, dynamic> json) =>
+      ActivatedProfile(
+        id: json['id'] as String,
+        displayName: json['displayName'] as String?,
+        isAdmin: json['isAdmin'] as bool,
       );
 }
 

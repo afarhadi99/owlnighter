@@ -59,12 +59,16 @@ export async function saveDefaultProviderAction(
       "ai_provider.default",
       String(formData.get("ai_provider.default") ?? "ai_tutor_api"),
     );
+    const grounding = String(formData.get("ai_provider.task_override.book_grounding") ?? "");
+    const plan = String(formData.get("ai_provider.task_override.plan_generation") ?? "");
     const quiz = String(formData.get("ai_provider.task_override.quiz_generation") ?? "");
     const rewrite = String(formData.get("ai_provider.task_override.rewrite") ?? "");
-    // The registry validates these two keys as `AiProviderName.nullable()` —
-    // `null` clears the override back to built-in routing. An empty string
-    // would fail that schema's enum check, so an empty select value must be
+    // The registry validates these keys as `AiProviderName.nullable()` — `null`
+    // clears the override back to the default provider. An empty string would
+    // fail that schema's enum check, so an empty select value must be
     // converted to `null` here rather than sent as-is.
+    await api.adminPutSetting("ai_provider.task_override.book_grounding", grounding || null);
+    await api.adminPutSetting("ai_provider.task_override.plan_generation", plan || null);
     await api.adminPutSetting("ai_provider.task_override.quiz_generation", quiz || null);
     await api.adminPutSetting("ai_provider.task_override.rewrite", rewrite || null);
   } catch (err) {

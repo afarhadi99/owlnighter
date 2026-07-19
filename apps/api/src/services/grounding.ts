@@ -10,6 +10,7 @@ import {
 } from "@owlnighter/contracts";
 import type { Deps } from "../deps.js";
 import { unavailable } from "../plugins/errors.js";
+import { isTaskConfigured } from "./ai-availability.js";
 
 /**
  * Schema the grounding model must return. This is the "truth layer": edition
@@ -116,9 +117,8 @@ async function findExistingBook(deps: Deps, identity: BookIdentity): Promise<str
  * Grounding), persist the truth layer, and return the API response.
  */
 export async function groundBook(deps: Deps, req: BookGroundRequest): Promise<BookGroundResponse> {
-  if (deps.config.env.GEMINI_API_KEY.length === 0) {
-    // Grounding is Gemini-only (native Search Grounding). No key → no faked truth.
-    throw unavailable("Grounding unavailable: GEMINI_API_KEY is not configured.");
+  if (!(await isTaskConfigured(deps, "book_grounding"))) {
+    throw unavailable("Grounding unavailable: no AI provider is configured for book grounding.");
   }
 
   const inputHash = contentHash([req.title, req.author, req.locale, JSON.stringify(req.candidates)]);
@@ -129,7 +129,6 @@ export async function groundBook(deps: Deps, req: BookGroundRequest): Promise<Bo
     schema: GroundedIdentity,
     system: SYSTEM_PROMPT,
     user: userPrompt(req),
-    provider: "gemini",
     requireGrounding: true,
     requireStrictSchema: true,
   });

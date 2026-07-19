@@ -130,14 +130,64 @@ owlnighter now defaults individual AI tasks to the **AI Tutor API** provider.
 Its key is **not** an env var — it's configured in the **admin panel → AI
 Providers → AI Tutor API**, stored in the `app_settings` table.
 
-Two of the three workflows (`book_grounding`, `plan_generation`) currently **fall
-back to Gemini** regardless — routing for them is hardcoded to Gemini today, so
-you need a Gemini key for grounding + plan generation to work. The AI Tutor
-workflow definitions and settings keys are prepared for forward-compatibility.
-To import the workflows and paste their ids into admin settings, follow
+Every task (book grounding, plan generation, quiz generation, rewrite) is
+provider-overridable from **admin panel → AI Providers → Default provider &
+task overrides** — nothing is hardcoded to a specific model. A task whose
+override points at AI Tutor API but has no workflow id configured for it
+falls back to Gemini automatically, so you still need a Gemini key for a task
+until you've imported its workflow. To import the workflows and paste their
+ids into admin settings, follow
 [`docs/ai-tutor-workflows/README.md`](ai-tutor-workflows/README.md) (importing is
 a manual browser step in the AI Tutor console; the workflow JSON lives in
 `docs/ai-tutor-workflows/`).
+
+### Referral codes (account activation gate)
+
+Every new app account — email/password signup **or** Google sign-in — must
+redeem an admin-issued referral code before it can use the app (returning
+users who already redeemed one are unaffected). Mint and manage codes from
+**admin panel → Referral Codes**: create a code (custom or auto-generated),
+optionally cap its uses or set an expiry, and deactivate it later. No env var
+or setup step is needed for this — it's pure application data.
+
+### Google sign-in — requires your own Google Cloud OAuth credentials
+
+The app's Google sign-in button and the referral-code activation gate around
+it are fully wired in code, but Google itself won't authenticate anyone until
+you provide real OAuth credentials — this can't be fabricated for you:
+
+1. In the [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
+   create an **OAuth 2.0 Client ID** (type: Web application).
+2. Add an **authorized redirect URI** of `<your SUPABASE_URL>/auth/v1/callback`
+   — e.g. `http://127.0.0.1:53321/auth/v1/callback` for a local stack whose
+   Kong gateway is on port 53321 (check `docker ps` for the actual port if
+   you're not sure which one this project is using).
+3. Put the resulting **Client ID** and **Client secret** into `.env` as
+   `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+4. Enable the Google provider on your local Supabase Auth (GoTrue) with those
+   two values. This project's local Supabase stack was not started from a
+   `supabase/config.toml` tracked in this repo, so exactly how to apply this
+   depends on how you stood it up:
+   - If you have a `supabase/config.toml` for this project (from
+     `supabase init`), add:
+     ```toml
+     [auth.external.google]
+     enabled = true
+     client_id = "env(GOOGLE_CLIENT_ID)"
+     secret = "env(GOOGLE_CLIENT_SECRET)"
+     ```
+     then `supabase stop && supabase start` to apply it.
+   - Otherwise, set `GOTRUE_EXTERNAL_GOOGLE_ENABLED=true`,
+     `GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID`, `GOTRUE_EXTERNAL_GOOGLE_SECRET`, and
+     `GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI` on whatever is managing your GoTrue
+     container's environment, then restart it.
+
+   This restarts your local auth service — do it deliberately, not as a side
+   effect of something else.
+
+The lightweight `infra/docker/docker-compose.yml` path (plain Postgres, no
+GoTrue) has no real auth service at all — Google sign-in only works against
+the full Supabase stack (`supabase start`).
 
 ---
 
@@ -161,6 +211,8 @@ Full template with comments: [`.env.example`](../.env.example). Copy it to `.env
 | `SUPABASE_URL` | Supabase project/local URL | for full Supabase auth/storage | `http://127.0.0.1:54321` |
 | `SUPABASE_ANON_KEY` | Supabase anon key | for full Supabase | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | for full Supabase | — |
+| `GOOGLE_CLIENT_ID` | Google OAuth client id (Google sign-in) | optional — only for Google sign-in | — |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (Google sign-in) | optional — only for Google sign-in | — |
 | `DATABASE_URL` | Postgres connection string | **yes** | set by setup → `…@127.0.0.1:55432/postgres` |
 | `GOOGLE_BOOKS_API_KEY` | Google Books catalog key | optional | — |
 | `OPEN_LIBRARY_BASE_URL` | Open Library base URL | no | `https://openlibrary.org` |

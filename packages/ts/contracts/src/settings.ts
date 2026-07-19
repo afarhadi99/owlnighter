@@ -31,23 +31,18 @@ export const SETTINGS_SCHEMA = {
   "ai_provider.openrouter.system_prompt.plan_generation": z.string(),
   "ai_provider.openrouter.system_prompt.quiz_generation": z.string(),
   "ai_provider.ai_tutor_api.api_key": z.string(),
-  // book_grounding and plan_generation are NOT reachable via any router code
-  // path today: packages/ts/ai/src/router.ts's TASK_OVERRIDABLE only allows
-  // quiz_generation/rewrite to be reassigned away from their hardcoded
-  // provider, and both of these tasks' production callers always pass
-  // requireGrounding: true, which forces Gemini before an override is ever
-  // consulted. These two keys are kept (rather than removed) for forward
-  // compatibility should that hardcoded-Gemini routing rule ever change —
-  // the schema and seed already have somewhere for the value to live so a
-  // future change to TASK_OVERRIDABLE wouldn't also need a settings/migration
-  // change. The admin UI deliberately hides both fields (see
-  // apps/admin/app/ai-providers/page.tsx) since there is nothing to configure
-  // for a task that can never route here.
   "ai_provider.ai_tutor_api.workflow_id.book_grounding": z.string(),
   "ai_provider.ai_tutor_api.workflow_id.plan_generation": z.string(),
   "ai_provider.ai_tutor_api.workflow_id.quiz_generation": z.string(),
   "ai_provider.ai_tutor_api.workflow_id.rewrite": z.string(),
   "ai_provider.default": AiProviderName,
+  // Every task is overridable — packages/ts/ai/src/router.ts resolves
+  // provider = taskOverrides[task] ?? default ?? "ai_tutor_api" for all four
+  // tasks, with a structural-capability fallback to Gemini when the
+  // preferred provider can't serve the task (no key, or ai_tutor_api missing
+  // that task's workflow_id). `null` clears an override back to the default.
+  "ai_provider.task_override.book_grounding": AiProviderName.nullable(),
+  "ai_provider.task_override.plan_generation": AiProviderName.nullable(),
   "ai_provider.task_override.quiz_generation": AiProviderName.nullable(),
   "ai_provider.task_override.rewrite": AiProviderName.nullable(),
 } as const satisfies Record<string, z.ZodType>;

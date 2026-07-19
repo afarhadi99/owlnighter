@@ -8,5 +8,6 @@ export * from "./admin-auth.js";
 export * from "./settings.js";
 export * from "./misc.js";
 export * from "./stats.js";
+export * from "./referral.js";
 export * from "./endpoints.js";
 export * from "./openapi.js";

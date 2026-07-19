@@ -37,6 +37,7 @@ export function ProviderCard({
             {f.label}
             {f.type === "textarea" ? (
               <textarea
+                key={f.defaultValue}
                 name={f.key}
                 defaultValue={f.defaultValue}
                 placeholder={f.placeholder}
@@ -45,6 +46,7 @@ export function ProviderCard({
               />
             ) : (
               <input
+                key={f.type === "password" ? undefined : f.defaultValue}
                 name={f.key}
                 type={f.type}
                 defaultValue={f.type === "password" ? undefined : f.defaultValue}

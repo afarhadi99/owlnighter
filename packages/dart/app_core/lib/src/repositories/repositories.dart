@@ -91,7 +91,17 @@ abstract interface class AuthRepository {
 
   Future<AuthSession> signIn({required String email, required String password});
 
+  /// Create a brand-new account. Every new account (whether email/password or
+  /// Google) must redeem an admin-issued referral code afterward — this only
+  /// establishes the Supabase Auth identity, not an activated `profiles` row.
+  Future<AuthSession> signUp({required String email, required String password});
+
   Future<AuthSession> signInWithMagicLink(String email);
+
+  /// Start a Google OAuth sign-in. Opens an external browser/webview; the
+  /// resulting session lands asynchronously (via the platform's auth-state
+  /// stream), not as this call's return value.
+  Future<void> signInWithGoogle();
 
   /// Exchange a refresh token for a fresh access token.
   Future<AuthSession> refresh(AuthSession current);

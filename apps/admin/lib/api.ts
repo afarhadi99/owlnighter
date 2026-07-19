@@ -305,6 +305,34 @@ export interface LibraryBooksResponse {
   books: LibraryBook[];
 }
 
+// ---- referral codes ----
+export interface AdminReferralCode {
+  [key: string]: unknown;
+  id: string;
+  code: string;
+  label: string | null;
+  maxUses: number | null;
+  useCount: number;
+  isActive: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+}
+export interface AdminListReferralCodesResponse {
+  codes: AdminReferralCode[];
+}
+export interface AdminCreateReferralCodeRequest {
+  code?: string;
+  label?: string;
+  maxUses?: number | null;
+  expiresAt?: string | null;
+}
+export interface AdminUpdateReferralCodeRequest {
+  label?: string | null;
+  isActive?: boolean;
+  maxUses?: number | null;
+  expiresAt?: string | null;
+}
+
 // ---- error envelope ----
 export interface ApiError {
   error: {
@@ -489,5 +517,25 @@ export const api = {
 
   adminGetAiModels(provider: "groq" | "openrouter") {
     return request<AdminAiModelsResponse>(`/v1/admin/ai/models?provider=${provider}`, { admin: true });
+  },
+
+  adminListReferralCodes() {
+    return request<AdminListReferralCodesResponse>("/v1/admin/referral-codes", { admin: true });
+  },
+
+  adminCreateReferralCode(body: AdminCreateReferralCodeRequest) {
+    return request<AdminReferralCode>("/v1/admin/referral-codes", {
+      method: "POST",
+      admin: true,
+      body: JSON.stringify(body),
+    });
+  },
+
+  adminUpdateReferralCode(id: string, body: AdminUpdateReferralCodeRequest) {
+    return request<AdminReferralCode>(`/v1/admin/referral-codes/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      admin: true,
+      body: JSON.stringify(body),
+    });
   },
 };

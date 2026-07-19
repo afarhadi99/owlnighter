@@ -51,6 +51,11 @@ export function fakeDb(byTable: Map<unknown, Rows> = new Map(), executeResults: 
     update: (t: unknown) => makeChain().from(t),
     delete: (t: unknown) => makeChain().from(t),
     execute: async () => executeResults.shift() ?? [],
+    // Real Drizzle passes a scoped `tx` client into the callback and commits/
+    // rolls back around it. This fake has no transactional state to scope, so
+    // it just hands the callback the same db — good enough to exercise
+    // services that call `deps.db.transaction(async (tx) => ...)`.
+    transaction: (cb: (tx: Db) => unknown) => cb(db as unknown as Db),
   };
   return db as unknown as Db;
 }

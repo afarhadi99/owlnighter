@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/admin_debug/admin_debug_page.dart';
+import '../features/auth/activate_page.dart';
 import '../features/auth/auth_page.dart';
+import '../features/auth/signup_page.dart';
 import '../features/library/library_page.dart';
 import '../features/nightly_session/nightly_session_page.dart';
 import '../features/onboarding/onboarding_page.dart';
@@ -13,6 +15,7 @@ import '../features/reading_path/plan_launcher_page.dart';
 import '../features/reading_path/reading_path_page.dart';
 import '../features/settings/settings_page.dart';
 import '../features/streaks/streaks_page.dart';
+import '../services/api/activation_status_provider.dart';
 import '../services/api/session_provider.dart';
 import '../shared/util/env.dart';
 import 'home_shell.dart';
@@ -20,6 +23,11 @@ import 'home_shell.dart';
 /// Route path constants — one source of truth for navigation + deep links.
 abstract final class Routes {
   static const auth = '/auth';
+  static const signup = '/signup';
+  /// Referral-code redemption gate: shown whenever there's a live session but
+  /// no `profiles` row yet (Google sign-in, or a failed inline signup
+  /// activation). See activationStatusProvider.
+  static const activate = '/activate';
   static const onboarding = '/onboarding';
   static const library = '/library';
   static const streaks = '/streaks';
@@ -47,23 +55,46 @@ abstract final class Routes {
 /// (see services/deep_links). Auth state drives the redirect guard.
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
+  // Whether the signed-in user has redeemed a referral code yet (activated a
+  // `profiles` row). `null` (still loading, or the check errored) means
+  // "unknown" — the gate below only acts on a definitive true/false so a slow
+  // network call never forces a wrong redirect.
+  final activation = ref.watch(activationStatusProvider);
 
   return GoRouter(
     initialLocation: Routes.library,
-    // Redirect unauthenticated users to /auth (except while on auth/onboarding).
+    // Redirect unauthenticated users to /auth (except while on
+    // auth/signup/onboarding), and gate signed-in-but-unactivated users to
+    // /activate until they redeem a referral code.
     redirect: (context, state) {
       final loggedIn = auth.valueOrNull != null;
       final loc = state.matchedLocation;
-      final onAuthFlow =
-          loc == Routes.auth || loc.startsWith(Routes.onboarding);
-      if (!loggedIn && !onAuthFlow) return Routes.auth;
-      if (loggedIn && loc == Routes.auth) return Routes.library;
+      final onAuthFlow = loc == Routes.auth ||
+          loc == Routes.signup ||
+          loc.startsWith(Routes.onboarding);
+
+      if (!loggedIn) {
+        return onAuthFlow ? null : Routes.auth;
+      }
+
+      final activated = activation.valueOrNull;
+      if (activated == false && loc != Routes.activate) return Routes.activate;
+      if (activated == true && loc == Routes.activate) return Routes.library;
+      if (loc == Routes.auth || loc == Routes.signup) return Routes.library;
       return null;
     },
     routes: [
       GoRoute(
         path: Routes.auth,
         builder: (_, __) => const AuthPage(),
+      ),
+      GoRoute(
+        path: Routes.signup,
+        builder: (_, __) => const SignupPage(),
+      ),
+      GoRoute(
+        path: Routes.activate,
+        builder: (_, __) => const ActivatePage(),
       ),
       GoRoute(
         path: Routes.onboarding,

@@ -26,6 +26,7 @@ export function SettingField({
       <label className="w-64 shrink-0 text-sm text-muted">{label}</label>
       {type === "boolean" ? (
         <select
+          key={String(initialValue)}
           name="value"
           defaultValue={String(initialValue)}
           className="rounded border border-line bg-ink-700 px-2 py-1 text-sm text-slate-100"
@@ -42,6 +43,7 @@ export function SettingField({
         />
       ) : (
         <input
+          key={type === "number" ? Number(initialValue) : String(initialValue ?? "")}
           name="value"
           type={type === "number" ? "number" : "text"}
           step={type === "number" ? "any" : undefined}

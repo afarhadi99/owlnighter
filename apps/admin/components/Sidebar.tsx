@@ -21,6 +21,7 @@ const NAV: { href: string; label: string; hint: string }[] = [
   { href: "/settings", label: "Settings", hint: "limits · flags · catalog" },
   { href: "/ai-providers", label: "AI Providers", hint: "keys · models · prompts" },
   { href: "/accounts", label: "Admin Accounts", hint: "pending approvals" },
+  { href: "/referral-codes", label: "Referral Codes", hint: "invite gate · usage" },
 ];
 
 export function Sidebar() {

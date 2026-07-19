@@ -34,6 +34,34 @@ abstract final class AppEnv {
         : 'http://localhost:8787';
   }
 
+  static const bool _hasSupabaseUrlOverride =
+      bool.hasEnvironment('SUPABASE_URL');
+  static const String _supabaseUrlOverride =
+      String.fromEnvironment('SUPABASE_URL');
+
+  /// Base URL for the local Supabase stack (Kong gateway in front of GoTrue +
+  /// Postgres). Same override/resolution order as [apiBaseUrl], but for port
+  /// 53321.
+  static String get supabaseUrl {
+    if (_hasSupabaseUrlOverride && _supabaseUrlOverride.isNotEmpty) {
+      return _supabaseUrlOverride;
+    }
+    if (kIsWeb) return 'http://localhost:53321';
+    return defaultTargetPlatform == TargetPlatform.android
+        ? 'http://10.0.2.2:53321'
+        : 'http://localhost:53321';
+  }
+
+  /// Supabase anon key. Empty by default — supply the real value via
+  /// `--dart-define=SUPABASE_ANON_KEY=...` (see `supabase status` /
+  /// `supabase/config.toml`). Real Supabase Auth calls fail with an
+  /// "invalid API key" style error until this is set; that is a local config
+  /// gap, not something to fabricate here.
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: '',
+  );
+
   /// Universal-link host, used to recognise inbound https deep links.
   static const String appLinkHost = String.fromEnvironment(
     'APP_LINK_HOST',
