@@ -16,6 +16,14 @@ create table if not exists auth.users (
   created_at timestamptz not null default now()
 );
 
+-- Extra columns that real Supabase (GoTrue) provides on auth.users and that some
+-- dev seeds populate (e.g. packages/ts/db/scripts/seed-demo-data.mjs). Added
+-- idempotently so this shim can grow without breaking an already-shimmed DB.
+alter table auth.users add column if not exists aud text default 'authenticated';
+alter table auth.users add column if not exists role text default 'authenticated';
+alter table auth.users add column if not exists email_confirmed_at timestamptz;
+alter table auth.users add column if not exists updated_at timestamptz not null default now();
+
 -- Supabase populates request.jwt.claim.sub from the JWT; RLS policies call
 -- auth.uid() to get it. Locally we read the same GUC (settable per session).
 create or replace function auth.uid() returns uuid

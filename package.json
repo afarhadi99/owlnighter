@@ -15,6 +15,7 @@
     "packages/ts/*"
   ],
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "build": "pnpm -r --filter \"./packages/ts/**\" run build && pnpm -r --filter \"./apps/**\" run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
@@ -22,6 +23,9 @@
     "contracts:openapi": "pnpm --filter @owlnighter/contracts run openapi",
     "dev:api": "pnpm --filter @owlnighter/api run dev",
     "dev:admin": "pnpm --filter @owlnighter/admin run dev",
+    "db:up": "docker run -d --name owlnighter-db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres -p 55432:5432 pgvector/pgvector:pg16",
+    "db:migrate": "node --env-file=.env packages/ts/db/scripts/apply-local.mjs",
+    "db:seed": "node --env-file=.env packages/ts/db/scripts/seed-admin-accounts.mjs && node --env-file=.env packages/ts/db/scripts/seed-demo-data.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml,yml}\""
   },
   "devDependencies": {

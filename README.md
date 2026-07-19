@@ -92,32 +92,35 @@ flowchart TD
     Books[Google Books / Open Library] --> API
 ```
 
-## Quickstart
+## Quick Start
 
-For the fastest loop that exercises the **real** API end-to-end against a
-local Postgres (no full Supabase project needed), plus how to point the
-Flutter app at it on an emulator, see **[`docs/local-dev.md`](docs/local-dev.md)**.
-
-The short version:
+Cloned this with **nothing installed**? One command sets up everything —
+dependencies, API keys, `.env`, and a seeded local Postgres:
 
 ```bash
-# 1. Install TS deps
-pnpm install
-
-# 2. Configure secrets
-cp .env.example .env   # fill GEMINI_API_KEY, GROQ_API_KEY, Supabase, ...
-
-# 3. Bring up the API
-pnpm dev:api
-
-# 4. Admin (separate terminal)
-pnpm dev:admin
-
-# 5. Flutter app (requires the Flutter SDK + Melos)
-dart pub global activate melos
-melos bootstrap
-cd apps/mobile && flutter run
+./scripts/setup.sh      # macOS / Linux / Git Bash on Windows
+./scripts/setup.ps1     # Windows PowerShell
 ```
+
+It preflight-checks your tools, walks you through the API keys, stands up a
+`pgvector` Postgres in Docker, and applies the migrations + seeds admin/demo
+data. Then:
+
+```bash
+pnpm dev:api      # API   → http://localhost:8787
+pnpm dev:admin    # Admin → http://localhost:3001  (log in with a seeded admin)
+
+# Mobile (needs the Flutter SDK + an Android emulator):
+cd apps/mobile && flutter run --dart-define API_BASE_URL=http://10.0.2.2:8787
+```
+
+**Prerequisites** (the script detects these and links installers for any that
+are missing): Git, Node ≥20 (`corepack enable` for pnpm), Docker Desktop, and —
+for the mobile app — the Flutter SDK + Android Studio/emulator.
+
+**→ Full walkthrough, API-key sources, env reference, and troubleshooting:
+[`docs/SETUP.md`](docs/SETUP.md).**  
+For the fast API-only curl loop, see [`docs/local-dev.md`](docs/local-dev.md).
 
 ## Testing
 
